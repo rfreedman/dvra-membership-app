@@ -1,3 +1,0 @@
-sqlalchemy>=2.0
-# Optional: roster Excel serial-date fallback in import_from_spreadsheet
-openpyxl>=3.1

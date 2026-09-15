@@ -1,5 +1,0 @@
-# Apache: route all requests to index.php except existing files (static assets).
-RewriteEngine On
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.php [QSA,L]

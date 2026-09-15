@@ -9,7 +9,7 @@ When changing or adding **any user-facing UI** in this app:
 
 - **Stay visually and behaviorally consistent** with what already exists: typography, spacing, buttons, forms, tables, navigation, empty states, and feedback patterns already used on members, reports, and admin flows.
 - **Grids deserve extra care**: filter panels, sortable columns, export links, sticky headers, scroll regions, and session-backed list behavior should match the **current reference implementations** (members Tabulator grid, payment report and keyholders HTML tables) unless the user explicitly approves a redesign.
-- Reuse **shared CSS** (`public/static/style.css`) and the same **component-level conventions** (e.g. `filter-form`, `data-table` / `data-table-scroll`, `report-sort-th` / `report-sort-hit`, Tabulator header styling scoped under `.members-tabulator-wrap`) rather than inventing parallel styles or one-off markup for the same concepts.
-- For grid-specific URL, filter, and sort state, follow **`.cursor/rules/grid-session-urls.mdc`** and **`SessionQuerySnapshot`** so behavior stays uniform across list pages.
+- Reuse **shared CSS** (`static/style.css`) and the same **component-level conventions** (e.g. `filter-form`, `data-table` / `data-table-scroll`, `report-sort-th` / `report-sort-hit`, Tabulator header styling scoped under `.members-tabulator-wrap`) rather than inventing parallel styles or one-off markup for the same concepts.
+- For grid-specific URL, filter, and sort state, follow **`.cursor/rules/grid-session-urls.mdc`** and **`dvra.session_query`** so behavior stays uniform across list pages.
 
 Do not introduce divergent grid UX (different sort affordances, unrelated filter layout, or ad-hoc export behavior) without explicit user approval.

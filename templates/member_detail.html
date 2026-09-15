@@ -1,0 +1,97 @@
+<div class="standard-page-scroll member-detail-page">
+  {% if error %}
+  <p class="error">{{ error }}</p>
+  {% endif %}
+  <div class="member-page-header">
+    <h2>{% if member.call_sign %}{{ member.call_sign }} — {% endif %}{{ member.last_name }}, {{ member.first_name }}</h2>
+    <div class="member-page-actions">
+      <a class="btn-primary member-edit-leave-risk" href="{{ url_for('/members/' ~ member.id ~ '/payments') }}">Payments</a>
+    </div>
+  </div>
+
+  <form method="post" action="{{ url_for('/members/' ~ member.id ~ '/edit') }}" class="member-edit-form" id="member-edit-form">
+    <div class="member-form-field">
+      <label for="edit-last-name">Last name</label>
+      <input id="edit-last-name" class="member-form-control" name="last_name" value="{{ member.last_name }}" required autocomplete="family-name">
+    </div>
+    <div class="member-form-field">
+      <label for="edit-first-name">First name</label>
+      <input id="edit-first-name" class="member-form-control" name="first_name" value="{{ member.first_name }}" required autocomplete="given-name">
+    </div>
+    <div class="member-form-field">
+      <label for="edit-call">Call sign</label>
+      <input id="edit-call" class="member-form-control" name="call_sign" value="{{ member.call_sign or '' }}" placeholder="optional" autocomplete="off">
+    </div>
+    <div class="member-form-field">
+      <label for="edit-email">Email</label>
+      <input id="edit-email" class="member-form-control" name="email" type="email" value="{{ member.email or '' }}" autocomplete="email">
+    </div>
+    <div class="member-form-field">
+      <label for="edit-phone">Phone</label>
+      <input id="edit-phone" class="member-form-control" name="phone" value="{{ member.phone or '' }}" autocomplete="tel">
+    </div>
+
+    <fieldset class="member-address-fields member-form-fieldset">
+      <legend>Mailing address</legend>
+      <div class="member-form-field">
+        <label for="edit-addr-street">Street</label>
+        <input id="edit-addr-street" class="member-form-control" name="address_street" value="{{ member.address_street or '' }}" autocomplete="street-address">
+      </div>
+      <div class="member-form-field">
+        <label for="edit-addr-city">City</label>
+        <input id="edit-addr-city" class="member-form-control" name="address_city" value="{{ member.address_city or '' }}" autocomplete="address-level2">
+      </div>
+      <div class="member-form-field">
+        <label for="edit-addr-state">State</label>
+        <input id="edit-addr-state" class="member-form-control" name="address_state" value="{{ member.address_state or '' }}" maxlength="16" autocomplete="address-level1">
+      </div>
+      <div class="member-form-field">
+        <label for="edit-addr-zip">ZIP</label>
+        <input id="edit-addr-zip" class="member-form-control" name="address_zip" value="{{ member.address_zip or '' }}" maxlength="16" autocomplete="postal-code">
+      </div>
+    </fieldset>
+
+    <div class="member-form-field">
+      <label for="edit-license">License class</label>
+      <select id="edit-license" class="member-form-control" name="license_class">
+        <option value="">—</option>
+        {% for item in license_classes %}
+        <option value="{{ item.id }}"{% if member.license_class_id == item.id %} selected{% endif %}>{{ (item.name or '')|trim }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="member-form-field">
+      <label for="edit-membership">Membership type</label>
+      <select id="edit-membership" class="member-form-control" name="membership_type">
+        <option value="">—</option>
+        {% for item in membership_types %}
+        <option value="{{ item.id }}"{% if member.membership_type_id == item.id %} selected{% endif %}>{{ (item.name or '')|trim }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="member-form-field">
+      <label for="edit-arrl">ARRL member</label>
+      <select id="edit-arrl" class="member-form-control" name="arrl_member">
+        <option value="no"{% if not member.arrl_member %} selected{% endif %}>No</option>
+        <option value="yes"{% if member.arrl_member %} selected{% endif %}>Yes</option>
+      </select>
+    </div>
+    <div class="member-form-field">
+      <label for="edit-key">Key number</label>
+      <input id="edit-key" class="member-form-control no-spinner" name="key_number" type="number" min="0" step="1" value="{{ member.key_number if member.key_number is not none else '' }}">
+    </div>
+
+    <div class="member-form-field member-form-field--readonly" aria-live="polite">
+      <span class="member-form-field-label">Paid through</span>
+      <p class="member-form-readonly-text" id="member-paid-through">{% if member.paid_through %}{{ member.paid_through }}{% else %}—{% endif %}</p>
+      <p class="member-form-help"><a class="member-edit-leave-risk" href="{{ url_for('/members/' ~ member.id ~ '/payments') }}">Edit payments</a> to change paid-through date.</p>
+    </div>
+  </form>
+
+  <div class="member-form-actions-row">
+    <button type="submit" form="member-edit-form" id="member-edit-save" class="member-form-submit">Save member</button>
+    <form method="post" action="{{ url_for('/members/' ~ member.id ~ '/delete') }}" class="member-delete-form-inline" id="member-delete-form" data-confirm-delete="Delete this member and all payments?">
+      <button type="submit" class="member-form-delete-submit">Delete member</button>
+    </form>
+  </div>
+</div>

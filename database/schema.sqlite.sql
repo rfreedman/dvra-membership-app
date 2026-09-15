@@ -30,6 +30,11 @@ CREATE TABLE IF NOT EXISTS managers (
     CONSTRAINT uq_manager_username UNIQUE (username)
 );
 
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY NOT NULL,
+    value TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS members (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     last_name VARCHAR(128) NOT NULL,
@@ -57,6 +62,7 @@ CREATE TABLE IF NOT EXISTS payments (
     member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
     payment_date TEXT NOT NULL,
     paid_through TEXT NOT NULL,
+    membership_year INTEGER NOT NULL,
     membership_type_id INTEGER REFERENCES membership_types(id) ON DELETE SET NULL,
     notes TEXT,
     form_number VARCHAR(64),

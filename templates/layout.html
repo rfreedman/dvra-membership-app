@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="{{ base }}/static/style.css">
+  {{ extra_head_html|safe }}
+</head>
+<body>
+<header class="site-header">
+  <div class="header-inner">
+    <div class="site-header-brand-row">
+      <a href="{{ url_for('/') }}" aria-label="DVRA Membership Manager home">
+        <img class="site-header-logo" src="{{ base }}/static/w2zq-site-icon-gold.png" alt="" width="48" height="48">
+      </a>
+      <h1><a href="{{ url_for('/') }}">DVRA Membership Manager</a></h1>
+    </div>
+    <nav class="site-nav">
+      {% if authenticated %}
+      <a href="{{ url_for('/') }}" class="{{ 'active' if active_nav == 'members' else '' }}">Members</a>
+      <a href="{{ url_for('/reports') }}" class="{{ 'active' if active_nav == 'reports' else '' }}">Reports</a>
+      <a href="{{ url_for('/admin') }}" class="{{ 'active' if active_nav == 'admin' else '' }}">Admin</a>
+      <form class="logout-form" method="post" action="{{ url_for('/logout') }}">
+        <button type="submit">Logout</button>
+      </form>
+      {% endif %}
+    </nav>
+  </div>
+</header>
+<main class="site-main">
+  {{ content_html|safe }}
+</main>
+<script>
+(function () {
+  function fitScrollablePanels() {
+    var panels = document.querySelectorAll(".grid-page-body > .members-tabulator-wrap, .grid-page-body > .data-table-scroll, .standard-page-scroll");
+    if (!panels.length) return;
+    var vh = window.innerHeight || document.documentElement.clientHeight || 0;
+    var siteMain = document.querySelector(".site-main");
+    var pad = 0;
+    if (siteMain) pad = parseFloat(window.getComputedStyle(siteMain).paddingBottom || "0") || 0;
+    for (var i = 0; i < panels.length; i++) {
+      var panel = panels[i];
+      var rect = panel.getBoundingClientRect();
+      var gap = 12;
+      if (panel.classList.contains("data-table-scroll")) {
+        gap = 44;
+      } else if (panel.classList.contains("standard-page-scroll")) {
+        gap = 12;
+      } else if (panel.classList.contains("members-tabulator-wrap")) {
+        gap = 8;
+      }
+      var target = Math.max(180, Math.floor(vh - rect.top - pad - gap));
+      panel.style.height = target + "px";
+      if (panel.classList.contains("members-tabulator-wrap")) {
+        var tabulatorRoot = panel.querySelector(".tabulator");
+        if (tabulatorRoot && tabulatorRoot.tabulator && typeof tabulatorRoot.tabulator.redraw === "function") {
+          tabulatorRoot.tabulator.redraw(true);
+        }
+      }
+    }
+  }
+  window.addEventListener("resize", fitScrollablePanels);
+  document.addEventListener("DOMContentLoaded", function () {
+    fitScrollablePanels();
+    window.requestAnimationFrame(fitScrollablePanels);
+  });
+})();
+</script>
+{{ extra_scripts_html|safe }}
+</body>
+</html>

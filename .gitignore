@@ -1,9 +1,10 @@
 .DS_Store
-/vendor/
 /var/*.sqlite
 /var/*.db
+/var/sessions/
 /.env
-/python-import/.venv/
+/.venv/
+/venv/
 __pycache__/
 *.py[cod]
-.phpunit.cache/*
+.pytest_cache/

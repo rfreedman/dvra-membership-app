@@ -1,21 +1,21 @@
 ---
-description: Grid UIs (filters/sort) must match existing app UX and use SessionQuerySnapshot so GET URLs stay clean
+description: Grid UIs (filters/sort) must match existing app UX and use session_query so GET URLs stay clean
 alwaysApply: true
 ---
 
 # Grid UIs: session state and URL hygiene
 
-When **adding or changing** any page with a **filterable and/or sortable grid** (HTML tables with sortable headers, Tabulator, or similar):
+When **adding or changing** any page with a **filterable and/or sortable grid** (HTML tables, Tabulator, or similar):
 
 ## Do
 
-- **Reuse `src/Support/SessionQuerySnapshot.php`** for session read/write and POST→snapshot merge (including optional clear flags via `mergePost(..., $clearField)`). Do not introduce parallel ad-hoc `$_SESSION` keys or duplicate merge/flatten logic.
+- **Reuse `dvra/session_query.py`** for session read/write and POST→snapshot merge (including optional clear flags via `merge_post(..., clear_field)`). Do not introduce parallel ad-hoc session keys or duplicate merge/flatten logic.
 - **Match existing behavior and visuals** already used on this project:
-  - **Members** (`templates/members.php`, `templates/members_tabulator_scripts.php`): POST filter form, bare `/`; exports without query string; client-only grid sort synced via `POST /members/session-touch` and `MemberListExportParams::mergeClientSortIntoSession`.
-  - **Payment report** (`templates/reports_payment_report.php`, `PaymentsReportExportParams`, `POST /reports/payments`): POST forms for filters and column sorts, bare `/reports/payments`, exports from session.
-  - **Keyholders** (`templates/reports_keyholders.php`, `KeyholdersReportParams`, `POST /reports/keyholders`): same POST+303 pattern for sorts; exports from session.
+  - **Members** (`templates/members.html`, `templates/members_tabulator_scripts.html`): POST filter form, bare `/`; exports without query string; client-only grid sort synced via `POST /members/session-touch` and `list_params.members_merge_client_sort`.
+  - **Payment report** (`templates/reports_payment_report.html`, `list_params` payments helpers, `POST /reports/payments`): POST forms for filters and column sorts, bare `/reports/payments`, exports from session.
+  - **Keyholders** (`templates/reports_keyholders.html`, keyholders list params, `POST /reports/keyholders`): same POST+303 pattern for sorts; exports from session.
 - Use the same **sort header styling** as those pages where applicable (`report-sort-th`, `report-sort-hit`, payment-style POST sort forms or the members Tabulator pattern as appropriate).
-- Add or update **PHPUnit** coverage for new session/merge/export paths when behavior is non-trivial.
+- Add or update **pytest** coverage for new session/merge/export paths when behavior is non-trivial.
 
 ## Do not
 
@@ -24,4 +24,4 @@ When **adding or changing** any page with a **filterable and/or sortable grid** 
 
 ## Reference implementation
 
-Central primitive: **`DvraMembership\Support\SessionQuerySnapshot`**. Feature-specific wrappers stay thin (e.g. `*ExportParams`, `KeyholdersReportParams`) and should delegate merge/persist/read to `SessionQuerySnapshot` rather than reimplementing it.
+Central primitive: **`dvra.session_query`**. Feature-specific wrappers stay thin (`dvra/list_params.py`) and should delegate merge/persist/read to `session_query` rather than reimplementing it.

@@ -1,0 +1,186 @@
+<div class="standard-page-scroll admin-reference-page">
+  <div class="member-page-header">
+    <h2>Reference data and accounts</h2>
+  </div>
+
+  {% if error %}
+  <p class="error">{{ error }}</p>
+  {% endif %}
+
+  <section class="reference-block">
+    <h3>Membership year</h3>
+    <p class="muted">Default year for the members list, reports, and new payments. Individual payments still choose their own year.</p>
+    <form class="inline-form" method="post" action="{{ url_for('/admin/membership-year') }}">
+      <label>Current membership year
+        <select name="membership_year" required>
+          {% for y in membership_year_options %}
+          <option value="{{ y }}"{% if current_membership_year == y %} selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div class="inline-form-actions">
+        <button type="submit">Save</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="reference-block admin-ref-section">
+    <h3>License classes</h3>
+    <div class="data-table-scroll admin-ref-table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lc in license_classes %}
+          <tr>
+            <td>
+              <div class="admin-ref-item-row">
+                <form class="admin-ref-row-form" method="post" action="{{ url_for('/admin/license/' ~ lc.id ~ '/update') }}">
+                  <input type="text" name="name" value="{{ lc.name or '' }}" maxlength="64" required class="admin-ref-name-input" aria-label="License class name">
+                  <button type="submit">Save</button>
+                </form>
+                <form class="admin-ref-row-form admin-ref-delete-form" method="post" action="{{ url_for('/admin/license/' ~ lc.id ~ '/delete') }}">
+                  <button type="submit" class="btn-danger">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          <tr class="admin-ref-add-row">
+            <td>
+              <form class="admin-ref-row-form admin-ref-add-form" method="post" action="{{ url_for('/admin/license/create') }}">
+                <label class="visually-hidden" for="admin-new-license-class-name">New name</label>
+                <input id="admin-new-license-class-name" type="text" name="name" maxlength="64" required class="admin-ref-name-input" placeholder="New name">
+                <button type="submit">Add</button>
+              </form>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="reference-block admin-ref-section">
+    <h3>Membership types</h3>
+    <div class="data-table-scroll admin-ref-table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for mt in membership_types %}
+          <tr>
+            <td>
+              <div class="admin-ref-item-row">
+                <form class="admin-ref-row-form" method="post" action="{{ url_for('/admin/membership-type/' ~ mt.id ~ '/update') }}">
+                  <input type="text" name="name" value="{{ mt.name or '' }}" maxlength="64" required class="admin-ref-name-input" aria-label="Membership type name">
+                  <button type="submit">Save</button>
+                </form>
+                <form class="admin-ref-row-form admin-ref-delete-form" method="post" action="{{ url_for('/admin/membership-type/' ~ mt.id ~ '/delete') }}">
+                  <button type="submit" class="btn-danger">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          <tr class="admin-ref-add-row">
+            <td>
+              <form class="admin-ref-row-form admin-ref-add-form" method="post" action="{{ url_for('/admin/membership-type/create') }}">
+                <label class="visually-hidden" for="admin-new-membership-type-name">New name</label>
+                <input id="admin-new-membership-type-name" type="text" name="name" maxlength="64" required class="admin-ref-name-input" placeholder="New name">
+                <button type="submit">Add</button>
+              </form>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="reference-block">
+    <h3>Application admins</h3>
+    {% set multiple_admins = admin_users|length > 1 %}
+    {% for au in admin_users %}
+    <div class="reference-row">
+      <strong>{{ au.username }}</strong>
+      <form class="inline-form" method="post" action="{{ url_for('/admins/' ~ au.id ~ '/password') }}">
+        <label>New password
+          <input name="password" type="password" autocomplete="new-password" required>
+        </label>
+        <div class="inline-form-actions">
+          <button type="submit">Set password</button>
+        </div>
+      </form>
+      {% if multiple_admins %}
+      <form class="inline-form inline-delete-form" method="post" action="{{ url_for('/admins/' ~ au.id ~ '/delete') }}">
+        <div class="inline-form-actions">
+          <button type="submit" class="btn-danger">Delete</button>
+        </div>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    <form class="inline-form" method="post" action="{{ url_for('/admins/create') }}">
+      <label>New admin username
+        <input name="username" maxlength="128" autocomplete="username" required>
+      </label>
+      <label>Initial password
+        <input name="password" type="password" autocomplete="new-password" required>
+      </label>
+      <div class="inline-form-actions">
+        <button type="submit">Create admin</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="reference-block">
+    <h3>Managers</h3>
+    {% for mg in managers %}
+    <div class="reference-row">
+      <strong>{{ mg.username }}</strong>
+      <form class="inline-form" method="post" action="{{ url_for('/managers/' ~ mg.id ~ '/profile') }}">
+        <label>Display name
+          <input name="display_name" value="{{ mg.display_name or '' }}" maxlength="256">
+        </label>
+        <div class="inline-form-actions">
+          <button type="submit">Save profile</button>
+        </div>
+      </form>
+      <form class="inline-form" method="post" action="{{ url_for('/managers/' ~ mg.id ~ '/password') }}">
+        <label>New password
+          <input name="password" type="password" autocomplete="new-password" required>
+        </label>
+        <div class="inline-form-actions">
+          <button type="submit">Set password</button>
+        </div>
+      </form>
+      <form class="inline-form inline-delete-form" method="post" action="{{ url_for('/managers/' ~ mg.id ~ '/delete') }}">
+        <div class="inline-form-actions">
+          <button type="submit" class="btn-danger">Delete</button>
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+
+    <form class="inline-form" method="post" action="{{ url_for('/managers/create') }}">
+      <label>New manager username
+        <input name="username" maxlength="128" autocomplete="username" required>
+      </label>
+      <label>Initial password
+        <input name="password" type="password" autocomplete="new-password" required>
+      </label>
+      <label>Display name (optional)
+        <input name="display_name" maxlength="256">
+      </label>
+      <div class="inline-form-actions">
+        <button type="submit">Create manager</button>
+      </div>
+    </form>
+  </section>
+</div>

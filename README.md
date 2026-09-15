@@ -1,60 +1,77 @@
-# DVRA Membership Manager (PHP)
+# DVRA Membership Manager
 
-Standalone **PHP** scaffold (not part of any Python repo). Intended for deployment on **shared hosting** alongside other PHP—no long-lived application server required.
+Python **CGI** app (no FastAPI/Flask). The host executes **`index.py`** for `/` and other `.py` files by URL. Nested routes use **PATH_INFO** under `index.py` (for example `/index.py/members/new`).
 
-Uses **Slim 4**. **`/`**: Tabulator grid with filters/sort (Python-aligned). **`/members/new`**, **`/members/{id}/view`** (single-form edit), **`POST …/delete`**, validations (duplicate call sign, duplicate name-without-call, unique key number), unsaved-change guard + delete confirm mirroring Python. **`/members/{id}/payments`**: add payment dialog; inline row edits (`POST /payments/{id}/edit`); delete (`POST /payments/{id}/delete`); **`members.paid_through`** recomputed as **`MAX(payments.paid_through)`** after each change (NULL when no payments). **Spreadsheet import** is not implemented in PHP; a **one-off Python subtree** for dev and prod DB initialization lives under **`python-import/`** (see that README—intended only for initial roster load, not routine hosting). Still not ported: JSON REST API, CSV/XLSX/PDF routes, reports, admin/reference screens (export links on `/` still 404).
+| Path | Role |
+| --- | --- |
+| `index.py` | CGI entry |
+| `dvra/` | Application code (sqlite3, sessions, routes, exports) |
+| `templates/` | Jinja2 HTML |
+| `static/` | CSS and site icon |
+| `database/schema.sqlite.sql` | SQLite schema |
+| `dvra/fonts/` | DejaVu Sans for PDF exports (see `dvra/fonts/LICENSE`) |
 
-Shared UI assets (`public/static/style.css`, `w2zq-site-icon-gold.png`) are **copies**; when you change branding in one stack, update the other manually if you want them to match.
+Default database: **`var/dvra_membership.sqlite`**.
 
-## Requirements
+## Local run
 
-- PHP **8.2+** with **pdo_sqlite** (default for local dev). Add **pdo_mysql** when you port the schema to MySQL.
-- [Composer](https://getcomposer.org/)
-
-## Install
-
-```bash
-composer install
-mkdir -p var
-```
-
-SQLite defaults to **`var/dvra_membership.sqlite`**. Override:
+Python **3.10+**. From the repo root:
 
 ```bash
-export DATABASE_DSN="sqlite:$(pwd)/var/custom.sqlite"
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python scripts/dev_server.py
 ```
 
-Optional Slim **`BASE_PATH`** when the app is mounted under a subdirectory (e.g. `export BASE_PATH="/members-app/public"`).
+Then open:
+
+- http://127.0.0.1:8089/login
+- http://127.0.0.1:8089/health → `OK`
+
+The local server also accepts CGI-style paths: http://127.0.0.1:8089/index.py/login
+
+Optional: `--host` / `--port` (default `127.0.0.1:8089`). Restart the process after changing Python modules; CSS/templates reload on the next request.
 
 Bootstrap admin when **`admin_users`** is empty: **`admin`** / **`admin123`**, overridable with **`DVRA_ADMIN_USERNAME`** and **`DVRA_ADMIN_PASSWORD`**.
 
-Verbose Slim errors: **`export DVRA_DISPLAY_PHP_ERRORS=1`**.
-
-## Run locally
+Override the database:
 
 ```bash
-php -S 127.0.0.1:8089 -t public public/router.php
+export DATABASE_DSN="sqlite:$(pwd)/var/custom.sqlite"
+python scripts/dev_server.py
 ```
 
-- `http://127.0.0.1:8089/health` → `OK`
-- `http://127.0.0.1:8089/login` → sign in
+Set **`DVRA_DISPLAY_ERRORS=1`** to include a traceback in HTTP 500 responses (local debugging only).
 
-## Apache
-
-Point **DocumentRoot** at **`public/`** and allow **`public/.htaccess`** rewrites.
-
-## Schema
-
-See **`database/schema.sqlite.sql`** (SQLite). For MySQL/MariaDB on shared hosting, translate types and the partial unique index on **`members.call_sign`**.
-
-### Python `python-import/` (one-off only)
-
-Spreadsheet import is **not** in the PHP app. The **`python-import/`** directory is a copied Python importer for the **same schema**, intended **only** as a **one-off** during development and **production initialization** (first roster load). It is **not** a routine dependency after the database is populated. Instructions: **`python-import/README.md`**.
-
-Member **`phone`** values are normalized to US **`NXX-NXX-XXXX`** via **`MemberInputNormalizer`** on web forms, and **`MemberRepository::insertMember` / `updateMember`** always run the same normalizer on `phone` before writing—so spreadsheet or bulk imports that use those methods get consistent storage (non‑US / non‑10‑digit → **`NULL`**).
-
-To rewrite existing rows (e.g. after restoring a DB dump):
+## Tests
 
 ```bash
-php scripts/normalize_member_phones.php
+pytest
 ```
+
+## Spreadsheet import (one-off)
+
+Not part of the CGI app. Uses SQLAlchemy only for this CLI. From the repo root:
+
+```bash
+python scripts/import_from_spreadsheet.py \
+  --spreadsheet /path/to/roster.xlsx \
+  --database-url "sqlite:////absolute/path/to/var/dvra_membership.sqlite"
+```
+
+Optional flags: `--replace` (delete existing members/payments first), `--default-membership-type "Regular"` (when the spreadsheet omits membership type).
+
+Rewrite existing phones to US `NXX-NXX-XXXX`:
+
+```bash
+python scripts/normalize_member_phones.py
+```
+
+## Exports
+
+Member and report downloads are CSV (UTF-8 with BOM), XLSX, and PDF. PDFs embed **DejaVu Sans** so names and notes stay Unicode (UTF-16 in the PDF). Font license: `dvra/fonts/LICENSE`.
+
+## Hosting
+
+Document root is the repo root. The host should execute `index.py` for `/`. Nested pages are `/index.py/...` unless the host maps unknown paths to `index.py` with PATH_INFO. Static files are served as files from **`static/`**.

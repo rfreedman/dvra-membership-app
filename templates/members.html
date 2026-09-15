@@ -1,0 +1,78 @@
+<div class="grid-page">
+  <div class="grid-page-top">
+    <div class="member-page-header">
+      <h2>Members</h2>
+      <div class="member-page-actions">
+        <a class="btn-primary" href="{{ url_for('/members/new') }}">New member</a>
+      </div>
+    </div>
+    <form method="post" action="{{ url_for('/') }}" class="filter-form" id="members-filter-form">
+      <input type="hidden" name="sort_by" value="{{ sort_by }}">
+      <input type="hidden" name="sort_dir" value="{{ sort_dir }}">
+      <div class="members-scope-panel">
+        <div class="members-scope-switch" id="members-scope-switch">
+          <input type="hidden" name="current_only" id="members-current-only-field" value="{{ current_only }}">
+          <div class="members-scope-switch-row">
+            <span class="members-scope-caption members-scope-caption--current">Current members</span>
+            <label class="switch-widget">
+              <input
+                type="checkbox"
+                class="switch-widget-input"
+                id="members-current-only-cb"
+                {% if current_only == 'yes' %}checked{% endif %}
+                aria-label="Member list: current members only, or all members"
+              >
+              <span class="switch-widget-track" aria-hidden="true">
+                <span class="switch-widget-thumb"></span>
+              </span>
+            </label>
+            <span class="members-scope-caption members-scope-caption--all">All members</span>
+          </div>
+        </div>
+        <p class="muted filter-hint">Current means paid for membership year {{ membership_year }}.</p>
+      </div>
+      <div class="filter-grid">
+        <label>Membership year
+          <select name="membership_year">
+            {% for y in membership_year_options %}
+            <option value="{{ y }}"{% if membership_year == y %} selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Search <input type="text" name="search" value="{{ search }}" placeholder="Name, call sign, email"></label>
+        <label>Membership type
+          <select name="membership_type_id">
+            <option value=""{% if membership_type_id is none %} selected{% endif %}>Any</option>
+            {% for item in membership_types %}
+            <option value="{{ item.id }}"{% if membership_type_id == item.id %} selected{% endif %}>{{ (item.name or '')|trim }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>ARRL member
+          <select name="arrl">
+            <option value=""{% if arrl == '' %} selected{% endif %}>Any</option>
+            <option value="yes"{% if arrl == 'yes' %} selected{% endif %}>Yes</option>
+            <option value="no"{% if arrl == 'no' %} selected{% endif %}>No</option>
+          </select>
+        </label>
+      </div>
+      <div class="filter-form-actions">
+        <button type="submit">Apply filters</button>
+        <button type="submit" name="reset_list_filters" value="1" class="filter-clear">Clear filters</button>
+      </div>
+    </form>
+    <div class="results-and-export-row">
+      <p class="results-meta">{{ total }} member{% if total != 1 %}s{% endif %}</p>
+      <p class="muted export-links">Export matching members:
+        <a id="members-export-link-xlsx" class="members-export-link" href="{{ url_for('/members/export.xlsx') }}{{ export_query }}">Excel</a>
+        <span aria-hidden="true">·</span>
+        <a id="members-export-link-csv" class="members-export-link" href="{{ url_for('/members/export.csv') }}{{ export_query }}">CSV</a>
+        <span aria-hidden="true">·</span>
+        <a id="members-export-link-pdf" class="members-export-link" href="{{ url_for('/members/export.pdf') }}{{ export_query }}">PDF</a>
+      </p>
+    </div>
+  </div>
+  <div class="grid-page-body">
+    <div id="members-grid" class="members-tabulator-wrap" role="grid" aria-label="Members"></div>
+  </div>
+</div>

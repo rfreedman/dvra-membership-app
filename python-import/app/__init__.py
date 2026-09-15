@@ -1,1 +1,0 @@
-"""DVRA membership application package."""

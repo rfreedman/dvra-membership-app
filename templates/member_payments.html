@@ -1,0 +1,129 @@
+<div class="standard-page-scroll">
+  <p><a href="{{ url_for('/members/' ~ member.id ~ '/view') }}">← Back to member</a></p>
+  {% if flash_error %}
+  <p class="error">{{ flash_error }}</p>
+  {% endif %}
+
+  {% if rollover %}
+  {% set req_y = rollover.requested_year %}
+  {% set prop_y = rollover.proposed_year %}
+  {% if rollover.mode == 'edit' %}
+    {% set confirm_action = url_for('/payments/' ~ rollover.payment_id ~ '/edit') %}
+  {% else %}
+    {% set confirm_action = url_for('/members/' ~ member.id ~ '/payments/new') %}
+  {% endif %}
+  <div class="payment-card">
+    <p class="error">This member already has a payment for {{ req_y }}. Proceeding will record this payment for {{ prop_y }} instead.</p>
+    <form method="post" action="{{ confirm_action }}" class="inline-form">
+      <input type="hidden" name="confirm_year_rollover" value="1">
+      <input type="hidden" name="payment_date" value="{{ rollover.payment_date }}">
+      <input type="hidden" name="membership_year" value="{{ req_y }}">
+      <input type="hidden" name="membership_type" value="{{ rollover.membership_type }}">
+      <input type="hidden" name="form_number" value="{{ rollover.form_number }}">
+      <input type="hidden" name="notes" value="{{ rollover.notes }}">
+      <div class="inline-form-actions">
+        <button type="submit">Proceed for {{ prop_y }}</button>
+        <a class="filter-clear" href="{{ url_for('/members/' ~ member.id ~ '/payments') }}">Cancel</a>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="member-page-header">
+    <h2>Payments — {{ member.last_name }}, {{ member.first_name }}{% if member.call_sign %} ({{ member.call_sign }}){% endif %}</h2>
+    <div class="member-page-actions">
+      <button id="open-add-payment" type="button" class="btn-primary">Add Payment</button>
+    </div>
+  </div>
+
+  <dialog id="add-payment-dialog">
+    <form method="dialog" class="dialog-close-corner-form">
+      <button type="submit" class="dialog-close-corner-btn" aria-label="Cancel and close">×</button>
+    </form>
+    <h3>Add payment</h3>
+    <form method="post" action="{{ url_for('/members/' ~ member.id ~ '/payments/new') }}" class="stacked-form">
+      <label>Payment date <input name="payment_date" type="date" required></label>
+      <label>Membership year
+        <select name="membership_year" required>
+          {% for y in membership_year_options %}
+          <option value="{{ y }}"{% if default_membership_year == y %} selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Membership type
+        <select name="membership_type">
+          <option value="">—</option>
+          {% for item in membership_types %}
+          <option value="{{ item.id }}">{{ (item.name or '')|trim }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Form number <input name="form_number" type="text" maxlength="64" autocomplete="off" placeholder="Optional"></label>
+      <label class="full-width">Notes <textarea name="notes" rows="4"></textarea></label>
+      <div class="form-actions-row">
+        <button type="submit">Add payment</button>
+        <button type="button" id="cancel-add-payment" class="btn-danger">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  {% if payments %}
+  <div class="data-table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Payment Date</th>
+          <th>Membership year</th>
+          <th>Paid Through</th>
+          <th>Membership Type</th>
+          <th>Form #</th>
+          <th>Notes</th>
+          <th>Delete</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for payment in payments %}
+        <tr>
+          <td>
+            <input class="payment-row-input" form="payment-row-{{ payment.id }}" name="payment_date" type="date" value="{{ payment.payment_date }}" required>
+          </td>
+          <td>
+            <select class="payment-row-input" form="payment-row-{{ payment.id }}" name="membership_year" required>
+              {% for y in membership_year_options %}
+              <option value="{{ y }}"{% if payment.membership_year == y %} selected{% endif %}>{{ y }}</option>
+              {% endfor %}
+              {% if payment.membership_year and payment.membership_year not in membership_year_options %}
+              <option value="{{ payment.membership_year }}" selected>{{ payment.membership_year }}</option>
+              {% endif %}
+            </select>
+          </td>
+          <td>{{ payment.paid_through }}</td>
+          <td>
+            <select class="payment-row-input" form="payment-row-{{ payment.id }}" name="membership_type">
+              <option value="">—</option>
+              {% for item in membership_types %}
+              <option value="{{ item.id }}"{% if payment.membership_type_id == item.id %} selected{% endif %}>{{ (item.name or '')|trim }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td>
+            <input class="payment-row-input" form="payment-row-{{ payment.id }}" name="form_number" type="text" maxlength="64" value="{{ payment.form_number or '' }}" autocomplete="off">
+          </td>
+          <td>
+            <input class="payment-row-input" form="payment-row-{{ payment.id }}" name="notes" type="text" value="{{ payment.notes or '' }}">
+            <form id="payment-row-{{ payment.id }}" method="post" action="{{ url_for('/payments/' ~ payment.id ~ '/edit') }}"></form>
+          </td>
+          <td>
+            <form method="post" action="{{ url_for('/payments/' ~ payment.id ~ '/delete') }}">
+              <button type="submit" class="btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">No payments yet.</p>
+  {% endif %}
+</div>
