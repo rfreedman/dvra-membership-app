@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import html
 import json
 import sqlite3
 from typing import Any
 
 from dvra import membership_year as myear
-from dvra.http import url_for
+from dvra.reference_data import ReferenceDataRepository
+from dvra.sort_toggle import normalize_sort
 
 SORT_FIELDS = [
     "last_name",
@@ -31,7 +31,7 @@ def parse_list_query(qp: dict[str, Any]) -> dict[str, Any]:
     search = str(qp.get("search", "")).strip() if qp.get("search") is not None else ""
     sort_by_raw = str(qp.get("sort_by", "last_name"))
     sort_dir_raw = str(qp.get("sort_dir", "asc"))
-    sort_by, sort_dir = _normalize_sort(sort_by_raw, sort_dir_raw)
+    sort_by, sort_dir = normalize_sort(sort_by_raw, sort_dir_raw, SORT_FIELDS, "last_name")
 
     mid_raw = qp.get("membership_type_id", "")
     membership_type_id = None
@@ -81,12 +81,6 @@ def _escape_like(needle: str) -> str:
     return needle.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-def _normalize_sort(sort_by: str, sort_dir: str) -> tuple[str, str]:
-    sb = sort_by if sort_by in SORT_FIELDS else "last_name"
-    sd = "desc" if sort_dir.lower() == "desc" else "asc"
-    return sb, sd
-
-
 def _order_by_sql(sort_by: str, sort_dir: str) -> str:
     desc = sort_dir == "desc"
     direction = "DESC" if desc else "ASC"
@@ -109,9 +103,9 @@ def _order_by_sql(sort_by: str, sort_dir: str) -> str:
     return mapping.get(sort_by, f"m.last_name {direction}{tail}")
 
 
-def _filter_clause(f: dict[str, Any]) -> tuple[str, list]:
+def _filter_clause(f: dict[str, Any]) -> tuple[str, list[Any]]:
     parts = ["1 = 1"]
-    bind: list = []
+    bind: list[Any] = []
     search = f.get("search") or ""
     if search:
         needle = "%" + _escape_like(search) + "%"
@@ -153,8 +147,7 @@ class MemberListRepository:
         self.conn = conn
 
     def list_membership_types(self) -> list[dict]:
-        rows = self.conn.execute("SELECT id, name FROM membership_types ORDER BY name ASC").fetchall()
-        return [{"id": int(r["id"]), "name": str(r["name"]) if r["name"] is not None else None} for r in rows]
+        return ReferenceDataRepository(self.conn).list_membership_types()
 
     def count_members(self, f: dict[str, Any]) -> int:
         where, bind = _filter_clause(f)
@@ -162,18 +155,12 @@ class MemberListRepository:
         return int(row[0])
 
     def list_rows_for_tabulator(self, p: dict[str, Any]) -> list[dict]:
-        rows = self._fetch_filtered(p)
-        out = []
-        for r in rows:
-            mapped = self._map_joined(r)
-            mapped["actions_html"] = _actions_html(int(r["id"]))
-            out.append(mapped)
-        return out
+        return [self._map_joined(r) for r in self._fetch_filtered(p)]
 
     def list_rows_for_export(self, p: dict[str, Any]) -> list[dict]:
         return [self._map_joined(r) for r in self._fetch_filtered(p)]
 
-    def _fetch_filtered(self, p: dict[str, Any]) -> list:
+    def _fetch_filtered(self, p: dict[str, Any]) -> list[sqlite3.Row]:
         where, bind = _filter_clause(
             {
                 "search": p["search"],
@@ -209,7 +196,7 @@ class MemberListRepository:
         return self.conn.execute(sql, bind).fetchall()
 
     @staticmethod
-    def _map_joined(r) -> dict:
+    def _map_joined(r: sqlite3.Row) -> dict:
         call = str(r["call_sign"]) if r["call_sign"] is not None else ""
         return {
             "id": int(r["id"]),
@@ -232,9 +219,3 @@ class MemberListRepository:
 
 def tabulator_json_from_rows(rows: list[dict]) -> str:
     return json.dumps(rows, ensure_ascii=False)
-
-
-def _actions_html(member_id: int) -> str:
-    view = html.escape(url_for(f"/members/{member_id}/view"), quote=True)
-    pay = html.escape(url_for(f"/members/{member_id}/payments"), quote=True)
-    return f'<a href="{view}">Edit</a><span aria-hidden="true"> · </span><a href="{pay}">Payments</a>'

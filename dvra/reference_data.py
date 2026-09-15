@@ -9,7 +9,7 @@ class ReferenceDataRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self.conn = conn
 
-    def _map_rows(self, rows) -> list[dict]:
+    def _map_rows(self, rows: list[sqlite3.Row]) -> list[dict]:
         return [
             {"id": int(r["id"]), "name": str(r["name"]) if r["name"] is not None else None}
             for r in rows

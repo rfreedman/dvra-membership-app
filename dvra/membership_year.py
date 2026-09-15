@@ -23,7 +23,7 @@ def option_years(center_year: int, span: int = 5) -> list[int]:
     return list(range(start, end + 1))
 
 
-def parse_year_input(raw, fallback: int | None = None) -> int | None:
+def parse_year_input(raw: object, fallback: int | None = None) -> int | None:
     if raw is None:
         return fallback
     if isinstance(raw, (list, tuple)):

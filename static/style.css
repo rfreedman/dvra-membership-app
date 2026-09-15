@@ -580,16 +580,28 @@ h2 {
   background-color: var(--color-table-stripe) !important;
 }
 
-.members-tabulator-wrap .members-tabulator-actions .tabulator-cell {
+.members-tabulator-wrap .tabulator-cell.members-tabulator-actions {
   white-space: nowrap;
 }
 
-/* Single gap after “Edit”; no trailing margin after “Payments” (column is fixed narrow width) */
-.members-tabulator-wrap .members-tabulator-actions .tabulator-cell a {
-  margin-right: 0;
+.members-tabulator-wrap .tabulator-cell.members-tabulator-actions a.btn-primary {
+  display: inline-block;
+  vertical-align: middle;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  border-radius: 4px;
+  background: var(--color-header-top);
+  color: #fff !important;
+  text-decoration: none;
+  border: none;
 }
-.members-tabulator-wrap .members-tabulator-actions .tabulator-cell a:first-of-type {
-  margin-right: 0.35rem;
+
+.members-tabulator-wrap .tabulator-cell.members-tabulator-actions a.btn-primary:hover {
+  background: var(--color-header-bottom);
+  color: #fff !important;
+  text-decoration: none;
 }
 
 .members-tabulator-wrap.tabulator .tabulator-row .tabulator-cell.members-col-fixed-data {
@@ -857,10 +869,6 @@ input.no-spinner[type="number"] {
   margin-block-start: 0.35rem;
 }
 
-.report-export-bar {
-  margin-block: 0 1rem;
-}
-
 .results-and-export-row .results-meta,
 .results-and-export-row .export-links {
   margin: 0;
@@ -921,17 +929,6 @@ input.no-spinner[type="number"] {
   background: var(--color-header-bottom);
   text-decoration: none;
   color: #fff !important;
-}
-
-.member-inline-action {
-  font-family: var(--font-ui);
-  font-size: 0.88rem;
-  font-weight: normal;
-  color: var(--color-muted);
-}
-
-.member-inline-action a {
-  font-weight: 500;
 }
 
 /* Member edit / create: conventional vertical form + scroll pane */
@@ -1224,10 +1221,6 @@ input.no-spinner[type="number"] {
   padding: 1rem;
   margin-bottom: 1rem;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
-}
-
-.payment-edit-form {
-  margin-bottom: 0.5rem;
 }
 
 .inline-delete-form {

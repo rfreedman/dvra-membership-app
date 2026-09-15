@@ -8,9 +8,8 @@ from dvra import membership_year as myear
 from dvra import session_query
 from dvra.member_list import list_params_to_query_input, parse_list_query
 from dvra.payments_report import list_params_to_query_input as pay_list_params
-from dvra.payments_report import parse_payment_report_query
-from dvra.reports import parse_keyholders_query
 
+# Session snapshots for grid filters/sorts (not URL query strings).
 MEMBERS_KEY = "dvra_members_last_export_query_input"
 PAYMENTS_KEY = "dvra_payments_report_filters"
 KEYHOLDERS_KEY = "dvra_keyholders_report_sort"

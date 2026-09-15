@@ -1,5 +1,5 @@
--- SQLite schema aligned with python/app/models.py (DVRA Membership Manager).
--- Applied on bootstrap via Schema::ensure() (PRAGMA foreign_keys is enabled in PDO).
+-- SQLite schema for DVRA Membership Manager.
+-- Applied on bootstrap via dvra.schema.ensure (PRAGMA foreign_keys is enabled in dvra.db).
 
 CREATE TABLE IF NOT EXISTS license_classes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

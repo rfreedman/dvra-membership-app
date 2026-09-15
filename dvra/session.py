@@ -11,7 +11,6 @@ from typing import Any
 from dvra.http import Response, parse_cookies
 from dvra.paths import SESSIONS_DIR
 
-COOKIE_NAME = "dvra_session"
 SESSION_SUFFIX = ".json"
 
 
@@ -24,10 +23,10 @@ def _new_sid() -> str:
     return secrets.token_hex(16)
 
 
-def load_session() -> tuple[str, dict[str, Any], bool]:
+def load_session(cookie_name: str) -> tuple[str, dict[str, Any], bool]:
     """Return (session_id, data, is_new)."""
     cookies = parse_cookies()
-    sid = cookies.get(COOKIE_NAME, "").strip()
+    sid = cookies.get(cookie_name, "").strip()
     if sid and all(c in "0123456789abcdef" for c in sid) and len(sid) == 32:
         path = _session_path(sid)
         if path.is_file():
@@ -55,10 +54,17 @@ def destroy_session(sid: str) -> None:
         pass
 
 
-def attach_session_cookie(response: Response, sid: str, *, clear: bool = False) -> None:
+def attach_session_cookie(
+    response: Response,
+    sid: str,
+    *,
+    cookie_name: str,
+    max_age: int,
+    clear: bool = False,
+) -> None:
     https = os.environ.get("HTTPS", "").lower() not in ("", "off", "0")
     parts = [
-        f"{COOKIE_NAME}={sid}",
+        f"{cookie_name}={sid}",
         "Path=/",
         "HttpOnly",
         "SameSite=Lax",
@@ -68,5 +74,5 @@ def attach_session_cookie(response: Response, sid: str, *, clear: bool = False) 
     if clear:
         parts.append("Max-Age=0")
     else:
-        parts.append("Max-Age=2592000")
+        parts.append(f"Max-Age={max_age}")
     response.add_header("Set-Cookie", "; ".join(parts))

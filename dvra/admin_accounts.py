@@ -17,7 +17,23 @@ class AdminAccountRepository:
         ).fetchall()
         return [{"id": int(r["id"]), "username": str(r["username"])} for r in rows]
 
+    def username_taken(self, username: str) -> bool:
+        name = username.strip()
+        if name == "":
+            return False
+        admin = self.conn.execute(
+            "SELECT 1 FROM admin_users WHERE username = ? LIMIT 1", (name,)
+        ).fetchone()
+        if admin is not None:
+            return True
+        manager = self.conn.execute(
+            "SELECT 1 FROM managers WHERE username = ? LIMIT 1", (name,)
+        ).fetchone()
+        return manager is not None
+
     def create_admin_user(self, username: str, raw_password: str) -> None:
+        if self.username_taken(username):
+            raise sqlite3.IntegrityError("username already exists")
         self.conn.execute(
             "INSERT INTO admin_users (username, password_hash) VALUES (?, ?)",
             (username.strip(), hash_password(raw_password)),
@@ -55,6 +71,8 @@ class AdminAccountRepository:
         return out
 
     def create_manager(self, username: str, raw_password: str, display_name: str | None) -> None:
+        if self.username_taken(username):
+            raise sqlite3.IntegrityError("username already exists")
         dn = display_name.strip() if display_name and display_name.strip() else None
         self.conn.execute(
             "INSERT INTO managers (username, password_hash, display_name) VALUES (?, ?, ?)",

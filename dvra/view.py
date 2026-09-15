@@ -35,12 +35,14 @@ def wrap_html(
     active_nav: str = "",
     extra_head_html: str = "",
     extra_scripts_html: str = "",
+    is_admin: bool = False,
 ) -> str:
     return render(
         "layout.html",
         title=title,
         content_html=content_html,
         authenticated=authenticated,
+        is_admin=is_admin,
         active_nav=active_nav,
         extra_head_html=extra_head_html,
         extra_scripts_html=extra_scripts_html,

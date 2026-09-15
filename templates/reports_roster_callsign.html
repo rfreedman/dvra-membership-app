@@ -1,3 +1,4 @@
+{% from '_export_links.html' import export_links %}
 <div class="grid-page">
   <div class="grid-page-top">
     <div class="member-page-header">
@@ -6,7 +7,7 @@
     <form method="post" action="{{ roster_post_action }}" class="filter-form">
       <div class="filter-grid">
         <label>Membership year
-          <select name="membership_year" onchange="this.form.submit()">
+          <select name="membership_year" data-submit-on-change>
             {% for y in membership_year_options %}
             <option value="{{ y }}"{% if membership_year == y %} selected{% endif %}>{{ y }}</option>
             {% endfor %}
@@ -17,13 +18,7 @@
     <p class="muted">Members paid for membership year {{ membership_year }} (same rule as the members list “Current” filter). Sorted by call sign.</p>
     <div class="results-and-export-row report-export-row--after-heading">
       <p class="results-meta">{{ total }} members</p>
-      <p class="muted export-links">Export this roster:
-        <a href="{{ url_for('/reports/roster-by-callsign/export.xlsx') }}">Excel</a>
-        <span aria-hidden="true">·</span>
-        <a href="{{ url_for('/reports/roster-by-callsign/export.csv') }}">CSV</a>
-        <span aria-hidden="true">·</span>
-        <a href="{{ url_for('/reports/roster-by-callsign/export.pdf') }}">PDF</a>
-      </p>
+      {{ export_links('Export this roster:', '/reports/roster-by-callsign/export', 'roster-callsign-exp-') }}
     </div>
   </div>
   <div class="grid-page-body">

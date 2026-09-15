@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import os
 import sqlite3
 import traceback
-from typing import Any
 
 from dvra import db as dbmod
 from dvra import http as htt
@@ -20,18 +18,16 @@ def ensure_bootstrap_admin(conn: sqlite3.Connection, settings: Settings) -> None
     n = int(conn.execute("SELECT COUNT(*) AS c FROM admin_users").fetchone()[0])
     if n > 0:
         return
-    user = settings.get("DVRA_ADMIN_USERNAME")
-    password = settings.get("DVRA_ADMIN_PASSWORD")
     conn.execute(
         "INSERT INTO admin_users (username, password_hash) VALUES (?, ?)",
-        (user, hash_password(password)),
+        (settings.admin_username, hash_password(settings.admin_password)),
     )
     conn.commit()
 
 
 def handle_request(body: bytes | None = None) -> htt.Response:
-    settings = Settings()
-    sid, session_data, is_new = sess.load_session()
+    settings = Settings.load()
+    sid, session_data, _ = sess.load_session(settings.session_cookie_name)
     conn = dbmod.connect(settings)
     try:
         schema.ensure(conn)
@@ -39,7 +35,7 @@ def handle_request(body: bytes | None = None) -> htt.Response:
         form = htt.parse_form(body)
         response = dispatch(conn, session_data, form)
     except Exception:
-        if os.environ.get("DVRA_DISPLAY_ERRORS") == "1":
+        if settings.display_errors:
             response = htt.text(traceback.format_exc(), status=500)
         else:
             response = htt.text("Internal server error", status=500)
@@ -48,8 +44,19 @@ def handle_request(body: bytes | None = None) -> htt.Response:
 
     if session_data.get("_destroyed"):
         sess.destroy_session(sid)
-        sess.attach_session_cookie(response, sid, clear=True)
+        sess.attach_session_cookie(
+            response,
+            sid,
+            cookie_name=settings.session_cookie_name,
+            max_age=settings.session_max_age,
+            clear=True,
+        )
     else:
         sess.save_session(sid, {k: v for k, v in session_data.items() if k != "_destroyed"})
-        sess.attach_session_cookie(response, sid)
+        sess.attach_session_cookie(
+            response,
+            sid,
+            cookie_name=settings.session_cookie_name,
+            max_age=settings.session_max_age,
+        )
     return response

@@ -20,8 +20,7 @@ def sqlite_path_from_dsn(dsn: str) -> str:
 
 
 def connect(settings: Settings) -> sqlite3.Connection:
-    dsn = settings.get("DATABASE_DSN")
-    path = sqlite_path_from_dsn(dsn)
+    path = sqlite_path_from_dsn(settings.database_dsn)
     if path not in (":memory:", "") and not path.startswith("file:"):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)

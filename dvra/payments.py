@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import sqlite3
 
+from typing import Any
+
 from dvra import membership_year as myear
 
 
@@ -54,7 +56,7 @@ class PaymentRepository:
             y += 1
         raise RuntimeError("No free membership year available.")
 
-    def insert_payment(self, member_id: int, data: dict) -> None:
+    def insert_payment(self, member_id: int, data: dict[str, Any]) -> None:
         year = int(data["membership_year"])
         paid_through = myear.paid_through_iso(year)
         try:
@@ -80,7 +82,7 @@ class PaymentRepository:
             self.conn.rollback()
             raise
 
-    def update_payment(self, payment_id: int, data: dict) -> int | None:
+    def update_payment(self, payment_id: int, data: dict[str, Any]) -> int | None:
         meta = self.find_payment_meta(payment_id)
         if meta is None:
             return None

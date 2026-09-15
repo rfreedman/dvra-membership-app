@@ -5,21 +5,23 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+from dvra.sort_toggle import next_sort_choice, normalize_sort
+
 KEYHOLDERS_SORT_FIELDS = ["name", "call_sign", "key_number", "email"]
 
 
 def parse_keyholders_query(qp: dict[str, Any]) -> dict[str, str]:
-    raw_sb = str(qp.get("sort_by", "name")).strip()
-    raw_sd = str(qp.get("sort_dir", "asc")).strip().lower()
-    sort_dir = "desc" if raw_sd == "desc" else "asc"
-    sort_by = raw_sb if raw_sb in KEYHOLDERS_SORT_FIELDS else "name"
+    sort_by, sort_dir = normalize_sort(
+        str(qp.get("sort_by", "name")).strip(),
+        str(qp.get("sort_dir", "asc")).strip(),
+        KEYHOLDERS_SORT_FIELDS,
+        "name",
+    )
     return {"sort_by": sort_by, "sort_dir": sort_dir}
 
 
 def next_keyholders_sort_choice(current_sort_by: str, current_sort_dir: str, clicked_field: str) -> tuple[str, str]:
-    if current_sort_by == clicked_field:
-        return clicked_field, "desc" if current_sort_dir == "asc" else "asc"
-    return clicked_field, "asc"
+    return next_sort_choice(current_sort_by, current_sort_dir, clicked_field)
 
 
 def _keyholders_order_by(sort_by: str, sort_dir: str) -> str:
@@ -78,7 +80,7 @@ class ReportsRepository:
             """,
             (membership_year,),
         ).fetchall()
-        return self._map_roster(rows, name_first=True)
+        return self._map_roster(rows)
 
     def roster_by_callsign(self, membership_year: int) -> list[dict]:
         rows = self.conn.execute(
@@ -93,20 +95,10 @@ class ReportsRepository:
             """,
             (membership_year,),
         ).fetchall()
-        out = []
-        for r in rows:
-            cs = str(r["call_sign"]).upper().strip() if r["call_sign"] is not None else ""
-            out.append(
-                {
-                    "call_sign": cs,
-                    "last_name": str(r["last_name"] or ""),
-                    "first_name": str(r["first_name"] or ""),
-                }
-            )
-        return out
+        return self._map_roster(rows)
 
     @staticmethod
-    def _map_roster(rows, name_first: bool) -> list[dict]:
+    def _map_roster(rows: list[sqlite3.Row]) -> list[dict]:
         out = []
         for r in rows:
             cs = str(r["call_sign"]).upper().strip() if r["call_sign"] is not None else ""

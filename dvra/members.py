@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import sqlite3
+from typing import Any
 
 from dvra import normalizer
+from dvra.reference_data import ReferenceDataRepository
 
 
 class DuplicateMemberKeyNumber(Exception):
@@ -16,12 +18,10 @@ class MemberRepository:
         self.conn = conn
 
     def list_license_classes(self) -> list[dict]:
-        rows = self.conn.execute("SELECT id, name FROM license_classes ORDER BY name ASC").fetchall()
-        return [{"id": int(r["id"]), "name": str(r["name"]) if r["name"] is not None else None} for r in rows]
+        return ReferenceDataRepository(self.conn).list_license_classes()
 
     def list_membership_types(self) -> list[dict]:
-        rows = self.conn.execute("SELECT id, name FROM membership_types ORDER BY name ASC").fetchall()
-        return [{"id": int(r["id"]), "name": str(r["name"]) if r["name"] is not None else None} for r in rows]
+        return ReferenceDataRepository(self.conn).list_membership_types()
 
     def find_member_by_id(self, id_: int) -> dict | None:
         row = self.conn.execute(
@@ -38,7 +38,7 @@ class MemberRepository:
         return self._normalize_member_row(row)
 
     @staticmethod
-    def _normalize_member_row(row) -> dict:
+    def _normalize_member_row(row: sqlite3.Row) -> dict:
         def s(key: str) -> str | None:
             v = row[key]
             return str(v) if v is not None else None
@@ -113,12 +113,12 @@ class MemberRepository:
             raise DuplicateMemberKeyNumber("Another member already holds that key number.")
 
     @staticmethod
-    def _coerce_phone(data: dict) -> None:
+    def _coerce_phone(data: dict[str, Any]) -> None:
         raw = data.get("phone")
         as_string = str(raw) if raw not in (None, "") else None
         data["phone"] = normalizer.normalize_phone_us_ten_digit(as_string)
 
-    def insert_member(self, data: dict) -> int:
+    def insert_member(self, data: dict[str, Any]) -> int:
         self._coerce_phone(data)
         self.enforce_unique_key_number(data["key_number"], None)
         cur = self.conn.execute(
@@ -150,7 +150,7 @@ class MemberRepository:
         self.conn.commit()
         return int(cur.lastrowid)
 
-    def update_member(self, id_: int, data: dict) -> None:
+    def update_member(self, id_: int, data: dict[str, Any]) -> None:
         self._coerce_phone(data)
         self.enforce_unique_key_number(data["key_number"], id_)
         self.conn.execute(

@@ -1,3 +1,4 @@
+{% from '_export_links.html' import export_links %}
 <div class="grid-page">
   <div class="grid-page-top">
     <div class="member-page-header">
@@ -63,13 +64,7 @@
     </form>
     <div class="results-and-export-row">
       <p class="results-meta">{{ total }} member{% if total != 1 %}s{% endif %}</p>
-      <p class="muted export-links">Export matching members:
-        <a id="members-export-link-xlsx" class="members-export-link" href="{{ url_for('/members/export.xlsx') }}{{ export_query }}">Excel</a>
-        <span aria-hidden="true">·</span>
-        <a id="members-export-link-csv" class="members-export-link" href="{{ url_for('/members/export.csv') }}{{ export_query }}">CSV</a>
-        <span aria-hidden="true">·</span>
-        <a id="members-export-link-pdf" class="members-export-link" href="{{ url_for('/members/export.pdf') }}{{ export_query }}">PDF</a>
-      </p>
+      {{ export_links('Export matching members:', '/members/export', 'members-export-link-') }}
     </div>
   </div>
   <div class="grid-page-body">

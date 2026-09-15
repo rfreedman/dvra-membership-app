@@ -80,7 +80,7 @@ def _pdf_landscape(heading: str, headers: list[str], widths: list[float], rows: 
 
 
 def timestamp_stem(prefix: str, compact: bool = False) -> str:
-    fmt = "%Ymd-%H%M%S" if compact else "%Y-%m-%d-%H%M%S"
+    fmt = "%Y%m%d-%H%M%S" if compact else "%Y-%m-%d-%H%M%S"
     return f"{prefix}-{datetime.now().strftime(fmt)}"
 
 

@@ -39,6 +39,7 @@ def test_current_only_includes_members_paid_for_year_independent_of_calendar():
     rows = repo.list_rows_for_export(filt)
     names = {r["last_name"] for r in rows}
     assert names == {"Able"}
+    assert "actions_html" not in rows[0]
     filt["membership_year"] = 2025
     rows = repo.list_rows_for_export(filt)
     names = {r["last_name"] for r in rows}

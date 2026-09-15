@@ -17,12 +17,9 @@
   }
 
   function syncExportLinks() {
-    ["xlsx", "csv", "pdf"].forEach(function (ext) {
-      const link = document.getElementById("members-export-link-" + ext);
-      if (link) {
-        link.href = APP_BASE + "/members/export." + ext;
-      }
-    });
+    if (typeof window.dvraSyncExportLinks === "function") {
+      window.dvraSyncExportLinks();
+    }
   }
 
   async function persistClientSortThenSyncExports() {
@@ -56,13 +53,22 @@
     columns: [
       {
         title: "Actions",
-        field: "actions_html",
+        field: "id",
         sortable: false,
         headerSort: false,
-        formatter: "html",
         hozAlign: "left",
-        width: 124,
+        width: 148,
         cssClass: "members-tabulator-actions",
+        formatter: function (cell) {
+          const id = Number(cell.getValue());
+          if (!Number.isFinite(id) || id <= 0) return "";
+          const viewHref = APP_BASE + "/members/" + id + "/view";
+          const payHref = APP_BASE + "/members/" + id + "/payments";
+          return (
+            '<a class="btn-primary" href="' + viewHref + '">Edit</a>&nbsp;' +
+            '<a class="btn-primary" href="' + payHref + '">Payments</a>'
+          );
+        },
       },
       {
         title: "Call sign",

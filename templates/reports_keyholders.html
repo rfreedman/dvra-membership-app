@@ -1,4 +1,5 @@
 {% from '_sort_header.html' import sortable_th %}
+{% from '_export_links.html' import export_links %}
 <div class="grid-page">
   <div class="grid-page-top">
     <div class="member-page-header">
@@ -6,13 +7,7 @@
     </div>
     <div class="results-and-export-row report-export-row--after-heading">
       <p class="results-meta">{{ total }} member{% if total != 1 %}s{% endif %} with a key number</p>
-      <p class="muted export-links">Export this report:
-        <a id="keyholders-report-exp-xlsx" href="{{ url_for('/reports/keyholders/export.xlsx') }}{{ export_query }}">Excel</a>
-        <span aria-hidden="true">·</span>
-        <a id="keyholders-report-exp-csv" href="{{ url_for('/reports/keyholders/export.csv') }}{{ export_query }}">CSV</a>
-        <span aria-hidden="true">·</span>
-        <a id="keyholders-report-exp-pdf" href="{{ url_for('/reports/keyholders/export.pdf') }}{{ export_query }}">PDF</a>
-      </p>
+      {{ export_links('Export this report:', '/reports/keyholders/export', 'keyholders-report-exp-') }}
     </div>
     <p class="muted">Members with a key number assigned.</p>
   </div>
@@ -43,16 +38,3 @@
     </div>
   </div>
 </div>
-
-<script>
-(function () {
-  var base = {{ base|tojson }};
-  function syncKeyholdersExports() {
-    ["xlsx", "csv", "pdf"].forEach(function (ext) {
-      var a = document.getElementById("keyholders-report-exp-" + ext);
-      if (a) a.href = base + "/reports/keyholders/export." + ext;
-    });
-  }
-  syncKeyholdersExports();
-})();
-</script>

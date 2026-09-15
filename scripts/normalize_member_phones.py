@@ -17,7 +17,7 @@ from dvra.settings import Settings
 
 
 def main() -> None:
-    settings = Settings()
+    settings = Settings.load()
     conn = connect(settings)
     ensure(conn)
     n = MemberRepository(conn).normalize_stored_member_phones_to_us_ten_digit()

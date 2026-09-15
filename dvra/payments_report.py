@@ -8,6 +8,8 @@ from typing import Any
 
 from dvra import membership_year as myear
 from dvra import normalizer
+from dvra.sort_toggle import next_sort_choice as _next_sort_choice
+from dvra.sort_toggle import normalize_sort
 
 ORDER_SQL_REPORT_DEFAULT_BASE = (
     "m.last_name ASC, m.first_name ASC, (p.paid_through) IS NULL ASC, p.paid_through DESC"
@@ -43,9 +45,7 @@ def _optional_iso_date(text: str) -> str | None:
 
 
 def _normalize_sort(sort_by: str, sort_dir: str) -> tuple[str, str]:
-    sb = sort_by if sort_by in SORT_FIELDS else "report_default"
-    sd = "desc" if sort_dir.lower() == "desc" else "asc"
-    return sb, sd
+    return normalize_sort(sort_by, sort_dir, SORT_FIELDS, "report_default")
 
 
 def parse_payment_report_query(qp: dict[str, Any]) -> dict[str, Any]:
@@ -82,10 +82,12 @@ def parse_payment_report_query(qp: dict[str, Any]) -> dict[str, Any]:
 
 
 def next_sort_choice(current_sort_by: str, current_sort_dir: str, clicked_field: str) -> tuple[str, str]:
-    if current_sort_by == clicked_field:
-        return clicked_field, "desc" if current_sort_dir == "asc" else "asc"
-    desc_first = {"payment_date", "paid_through"}
-    return clicked_field, "desc" if clicked_field in desc_first else "asc"
+    return _next_sort_choice(
+        current_sort_by,
+        current_sort_dir,
+        clicked_field,
+        desc_first=("payment_date", "paid_through"),
+    )
 
 
 def list_params_to_query_input(p: dict[str, Any]) -> dict[str, Any]:
@@ -102,9 +104,9 @@ def list_params_to_query_input(p: dict[str, Any]) -> dict[str, Any]:
     return q
 
 
-def _filter_clause(p: dict[str, Any]) -> tuple[str, list]:
+def _filter_clause(p: dict[str, Any]) -> tuple[str, list[Any]]:
     parts = ["1 = 1"]
-    bind: list = []
+    bind: list[Any] = []
     if p.get("start_filter"):
         parts.append("date(p.payment_date) >= date(?)")
         bind.append(p["start_filter"])
@@ -153,7 +155,7 @@ def _order_by_sql(sort_by: str, sort_dir: str) -> str:
     return mapping.get(sort_by, ORDER_SQL_REPORT_DEFAULT_BASE + sec + ", p.id DESC")
 
 
-def map_row(r) -> dict:
+def map_row(r: sqlite3.Row) -> dict:
     ln = str(r["last_name"] or "")
     fn = str(r["first_name"] or "")
     member_name = f"{ln}, {fn}" if ln or fn else ""

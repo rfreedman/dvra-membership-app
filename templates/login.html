@@ -31,13 +31,13 @@
 </div>
 <script>
 (function () {
-  var password = document.getElementById("login-password");
-  var toggle = document.getElementById("login-show-password");
+  const password = document.getElementById("login-password");
+  const toggle = document.getElementById("login-show-password");
   if (!password || !toggle) return;
-  var iconShow = toggle.querySelector(".login-password-icon-show");
-  var iconHide = toggle.querySelector(".login-password-icon-hide");
+  const iconShow = toggle.querySelector(".login-password-icon-show");
+  const iconHide = toggle.querySelector(".login-password-icon-hide");
   toggle.addEventListener("click", function () {
-    var show = password.type === "password";
+    const show = password.type === "password";
     password.type = show ? "text" : "password";
     toggle.setAttribute("aria-pressed", show ? "true" : "false");
     toggle.setAttribute("aria-label", show ? "Hide password" : "Show password");
