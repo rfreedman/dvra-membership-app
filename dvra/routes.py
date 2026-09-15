@@ -10,15 +10,12 @@ from dvra import auth
 from dvra import http as htt
 from dvra import list_params
 from dvra.context import RequestCtx
-from dvra.pages import admin as admin_pages
 from dvra.pages import login as login_pages
-from dvra.pages import members as member_pages
-from dvra.pages import reports as report_pages
 
 
 def dispatch(conn: sqlite3.Connection, session: dict[str, Any], form: dict[str, Any]) -> htt.Response:
     method = htt.request_method()
-    path = htt.path_info().rstrip("/") or "/"
+    path = htt.request_path()
     ctx: RequestCtx = {
         "conn": conn,
         "session": session,
@@ -34,8 +31,10 @@ def dispatch(conn: sqlite3.Connection, session: dict[str, Any], form: dict[str, 
     if needed is not None:
         return needed
 
-    if auth.is_admin_path(path) and not auth.is_admin(session):
-        return htt.redirect(htt.url_for("/"), status=303)
+    if auth.is_admin_path(path):
+        denied = login_pages.require_admin(ctx)
+        if denied is not None:
+            return denied
 
     authed = _match_authed(method, path, ctx)
     if authed is not None:
@@ -61,6 +60,11 @@ def _m(path: str, pattern: str) -> re.Match[str] | None:
 
 
 def _match_authed(method: str, path: str, ctx: RequestCtx) -> htt.Response | None:
+    # Import page modules only when authenticated routing needs them (CGI cold start).
+    from dvra.pages import admin as admin_pages
+    from dvra.pages import members as member_pages
+    from dvra.pages import reports as report_pages
+
     if method == "POST" and path == "/":
         return member_pages.handle_members_filter_post(ctx)
     if method == "GET" and path == "/":

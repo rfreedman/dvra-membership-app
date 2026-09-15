@@ -1,12 +1,18 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 """CGI entry point. Hosts that map / to a Python script execute this file."""
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+_VENV_ROOT = ROOT / ".venv"
+_VENV_PY = _VENV_ROOT / "bin" / "python3"
+if _VENV_PY.is_file() and Path(sys.prefix).resolve() != _VENV_ROOT.resolve():
+    os.execv(str(_VENV_PY), [str(_VENV_PY), str(ROOT / "index.py"), *sys.argv[1:]])
+
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 

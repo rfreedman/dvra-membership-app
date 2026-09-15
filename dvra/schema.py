@@ -7,8 +7,14 @@ from datetime import date
 
 from dvra.paths import SCHEMA_PATH
 
+# Bump when schema.sql or migrate_* logic changes so ensure() re-runs.
+SCHEMA_USER_VERSION = 3
+
 
 def ensure(conn: sqlite3.Connection) -> None:
+    current = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    if current >= SCHEMA_USER_VERSION:
+        return
     if not SCHEMA_PATH.is_file():
         raise RuntimeError(f"Missing schema file: {SCHEMA_PATH}")
     sql = SCHEMA_PATH.read_text(encoding="utf-8")
@@ -17,6 +23,7 @@ def ensure(conn: sqlite3.Connection) -> None:
             conn.execute(stmt)
     migrate_drop_license_and_membership_labels(conn)
     migrate_app_settings_and_payment_membership_year(conn)
+    conn.execute(f"PRAGMA user_version = {SCHEMA_USER_VERSION}")
     conn.commit()
 
 

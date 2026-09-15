@@ -8,9 +8,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fpdf import FPDF
-from openpyxl import Workbook
-
 # Unicode TTF so fpdf2 embeds text as UTF-16 (Identity-H), not a legacy 8-bit encoding.
 _FONTS_DIR = Path(__file__).resolve().parent / "fonts"
 _FONT_REGULAR = _FONTS_DIR / "DejaVuSans.ttf"
@@ -26,7 +23,9 @@ def _cell(value: Any) -> str:
     return str(value).strip()
 
 
-def _new_landscape_pdf() -> FPDF:
+def _new_landscape_pdf() -> Any:
+    from fpdf import FPDF
+
     pdf = FPDF(orientation="L", unit="mm", format="Letter")
     pdf.set_margins(10, 10, 10)
     pdf.add_font(_PDF_FONT, "", str(_FONT_REGULAR))
@@ -45,6 +44,8 @@ def _csv_bytes(headers: list[str], rows: list[list[Any]]) -> bytes:
 
 
 def _xlsx_bytes(headers: list[str], rows: list[list[Any]], title: str) -> bytes:
+    from openpyxl import Workbook
+
     wb = Workbook()
     ws = wb.active
     safe = title[:31] if title else "Report"

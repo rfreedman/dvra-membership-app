@@ -94,4 +94,64 @@ Member and report downloads are CSV (UTF-8 with BOM), XLSX, and PDF. PDFs embed 
 
 ## Hosting
 
-Document root is the repo root. The host should execute `index.py` for `/`. Nested pages are `/index.py/...` unless the host maps unknown paths to `index.py` with PATH_INFO. Static files are served as files from **`static/`**.
+Document root is this directory (the one that contains `index.py`, `dvra/`, `templates/`, and `static/`). Nested pages are `/index.py/...` unless the host maps unknown paths to `index.py` with PATH_INFO. Templates link CSS/JS/images as **`/static/...`**. Apache should serve those as real files; if a request still reaches CGI as `PATH_INFO=/static/...` (for example `/index.py/static/style.css`), the app serves the file itself. `.htaccess` also rewrites `/index.py/static/` to `/static/`.
+
+### DreamHost CGI (`.htaccess`)
+
+Copy [`.htaccess`](.htaccess) next to `index.py`. It is:
+
+```
+Options +ExecCGI
+AddHandler cgi-script .py
+DirectoryIndex index.py index.html
+```
+
+`DirectoryIndex` lists **`index.py` first**, so a request to `/` does **not** serve `index.html`. Apache runs `index.py` as CGI. That is why `/index.html` can return 200 while `/` returns 500.
+
+| URL | What Apache does |
+| --- | --- |
+| `/` | DirectoryIndex → execute `index.py` (CGI) |
+| `/index.html` | static file |
+| `/index.py` | execute `index.py` (CGI) |
+| `/index.py/health` | CGI with `PATH_INFO=/health`; body should be `OK` |
+
+If `/index.py` is also 500, ignore `index.html` and fix CGI. DreamHost already treats `.py` as CGI; if `error.log` says `Invalid command 'Options'`, comment out `Options +ExecCGI` (and try without `AddHandler`) and keep `DirectoryIndex index.py`.
+
+`index.py` must be mode **755**, UNIX **LF** line endings. Prefer a shebang that points at the **server** venv so Apache does not start system Python and then re-exec (double cold start):
+
+```
+#!/home/USERNAME/path/to/docroot/.venv/bin/python3
+```
+
+`index.py` will still re-exec `.venv/bin/python3` when the shebang is `/usr/bin/python3` and a local `.venv` exists. Do not copy a Mac `.venv` to the server.
+
+### Diagnose a 500 at `/`
+
+1. Compare the four URLs above. `/` 500 + `/index.html` 200 means DirectoryIndex is invoking CGI.
+2. Read `~/logs/<domain>/https/error.log` (or the domain’s `error.log`) while reloading `/` and `/index.py`:
+   - `Invalid command 'Options'` → comment out `Options +ExecCGI` in `.htaccess`
+   - `Premature end of script headers` → script never printed CGI headers (crash on import, bad shebang, or not executable)
+   - `python3\r` / `bad interpreter` → CRLF line endings
+   - `Permission denied` / suexec → not 755, or a directory is `777`
+   - `ModuleNotFoundError` (`jinja2`, `bcrypt`, `dotenv`, `openpyxl`, `fpdf`) → create a venv **on the server** (below)
+3. On the server, from the document root:
+
+```bash
+chmod 755 index.py
+mkdir -p var/sessions
+python3 -m venv .venv
+.venv/bin/pip install jinja2 openpyxl fpdf2 bcrypt python-dotenv
+```
+
+`index.py` re-execs `.venv/bin/python3` when that file exists (unless the process is already that interpreter). CGI packages are those five; `requirements.txt` also has pytest/sqlalchemy for local tests and the spreadsheet importer.
+
+Each CGI request starts a new Python process, so sub-second responses are uncommon on shared hosting. The app defers heavy imports (openpyxl/fpdf/bcrypt), skips schema work after the first migration via `PRAGMA user_version`, and handles `/members/session-touch` without opening the database.
+
+4. Confirm CGI without Apache:
+
+```bash
+export REQUEST_METHOD=GET PATH_INFO=/health SCRIPT_NAME=/index.py QUERY_STRING= CONTENT_LENGTH=0
+./index.py
+```
+
+A pass starts with `Status: 200 OK` and body `OK`. Optional: `DVRA_DISPLAY_ERRORS=1` in `.env` so application 500s include a traceback; turn it off afterward.

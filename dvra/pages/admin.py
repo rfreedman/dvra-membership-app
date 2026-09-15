@@ -11,10 +11,14 @@ from dvra.admin_accounts import AdminAccountRepository
 from dvra.app_settings import AppSettingsRepository
 from dvra.context import RequestCtx
 from dvra.pages.common import admin_redirect, html_page, ref_write_error
+from dvra.pages.login import require_admin
 from dvra.reference_data import ReferenceDataRepository
 
 
 def handle_admin_get(ctx: RequestCtx) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
     error = str(ctx["query"].get("error") or "").strip() or None
     ref = ReferenceDataRepository(ctx["conn"])
     accounts = AdminAccountRepository(ctx["conn"])
@@ -35,6 +39,9 @@ def handle_admin_get(ctx: RequestCtx) -> htt.Response:
 
 
 def handle_admin_membership_year(ctx: RequestCtx) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
     year = myear.parse_year_input(ctx["form"].get("membership_year"))
     if year is None:
         return admin_redirect("Invalid membership year.")
@@ -43,6 +50,9 @@ def handle_admin_membership_year(ctx: RequestCtx) -> htt.Response:
 
 
 def handle_license_create(ctx: RequestCtx) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
     name = str(ctx["form"].get("name") or "").strip()
     if name == "":
         return admin_redirect("Name is required.")
@@ -54,6 +64,9 @@ def handle_license_create(ctx: RequestCtx) -> htt.Response:
 
 
 def handle_license_update(ctx: RequestCtx, id_: int) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
     name = str(ctx["form"].get("name") or "").strip()
     if id_ <= 0 or name == "":
         return admin_redirect("Invalid license class.")
@@ -65,6 +78,9 @@ def handle_license_update(ctx: RequestCtx, id_: int) -> htt.Response:
 
 
 def handle_license_delete(ctx: RequestCtx, id_: int) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
     if id_ <= 0:
         return admin_redirect("Invalid license class.")
     try:
@@ -75,6 +91,9 @@ def handle_license_delete(ctx: RequestCtx, id_: int) -> htt.Response:
 
 
 def handle_mt_create(ctx: RequestCtx) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
     name = str(ctx["form"].get("name") or "").strip()
     if name == "":
         return admin_redirect("Name is required.")
@@ -86,6 +105,9 @@ def handle_mt_create(ctx: RequestCtx) -> htt.Response:
 
 
 def handle_mt_update(ctx: RequestCtx, id_: int) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
     name = str(ctx["form"].get("name") or "").strip()
     if id_ <= 0 or name == "":
         return admin_redirect("Invalid membership type.")
@@ -97,6 +119,9 @@ def handle_mt_update(ctx: RequestCtx, id_: int) -> htt.Response:
 
 
 def handle_mt_delete(ctx: RequestCtx, id_: int) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
     if id_ <= 0:
         return admin_redirect("Invalid membership type.")
     try:
@@ -110,6 +135,9 @@ def handle_mt_delete(ctx: RequestCtx, id_: int) -> htt.Response:
 
 
 def handle_admin_create(ctx: RequestCtx) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
     username = str(ctx["form"].get("username") or "").strip()
     password = str(ctx["form"].get("password") or "")
     if username == "" or password.strip() == "":
@@ -122,6 +150,9 @@ def handle_admin_create(ctx: RequestCtx) -> htt.Response:
 
 
 def handle_admin_password(ctx: RequestCtx, id_: int) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
     password = str(ctx["form"].get("password") or "")
     if id_ <= 0 or password.strip() == "":
         return admin_redirect("Invalid administrator or password.")
@@ -130,6 +161,9 @@ def handle_admin_password(ctx: RequestCtx, id_: int) -> htt.Response:
 
 
 def handle_admin_delete(ctx: RequestCtx, id_: int) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
     if id_ <= 0:
         return admin_redirect("Invalid administrator.")
     try:
@@ -140,6 +174,9 @@ def handle_admin_delete(ctx: RequestCtx, id_: int) -> htt.Response:
 
 
 def handle_manager_create(ctx: RequestCtx) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
     username = str(ctx["form"].get("username") or "").strip()
     password = str(ctx["form"].get("password") or "")
     display_raw = str(ctx["form"].get("display_name") or "").strip()
@@ -154,6 +191,9 @@ def handle_manager_create(ctx: RequestCtx) -> htt.Response:
 
 
 def handle_manager_password(ctx: RequestCtx, id_: int) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
     password = str(ctx["form"].get("password") or "")
     if id_ <= 0 or password.strip() == "":
         return admin_redirect("Invalid manager or password.")
@@ -162,6 +202,9 @@ def handle_manager_password(ctx: RequestCtx, id_: int) -> htt.Response:
 
 
 def handle_manager_profile(ctx: RequestCtx, id_: int) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
     display_raw = str(ctx["form"].get("display_name") or "").strip()
     if id_ <= 0:
         return admin_redirect("Invalid manager.")
@@ -170,6 +213,9 @@ def handle_manager_profile(ctx: RequestCtx, id_: int) -> htt.Response:
 
 
 def handle_manager_delete(ctx: RequestCtx, id_: int) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
     if id_ <= 0:
         return admin_redirect("Invalid manager.")
     try:

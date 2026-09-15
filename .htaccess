@@ -1,0 +1,20 @@
+# Enable CGI execution
+Options +ExecCGI
+
+# Tell Apache to treat .py files as CGI scripts
+AddHandler cgi-script .py
+
+# Set index.py as the default directory index
+DirectoryIndex index.py index.html
+
+RewriteEngine On
+
+# Static assets live under /static/ as real files. If a browser still asks for
+# /index.py/static/..., rewrite to the filesystem path so Apache (not CGI) serves them.
+RewriteRule ^index\.py/static/(.*)$ /static/$1 [L]
+
+# Pretty URLs: /admin, /login, /reports → /index.py/... (PATH_INFO).
+# Skip real files/dirs (static/, index.py, index.html, …).
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ /index.py/$1 [QSA,L]

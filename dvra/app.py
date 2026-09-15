@@ -9,9 +9,11 @@ from dvra import db as dbmod
 from dvra import http as htt
 from dvra import schema
 from dvra import session as sess
+from dvra.auth import is_logged_in
+from dvra.list_params import members_merge_client_sort
 from dvra.passwords import hash_password
-from dvra.routes import dispatch
 from dvra.settings import Settings
+from dvra.static_files import serve_static
 
 
 def ensure_bootstrap_admin(conn: sqlite3.Connection, settings: Settings) -> None:
@@ -25,7 +27,44 @@ def ensure_bootstrap_admin(conn: sqlite3.Connection, settings: Settings) -> None
     conn.commit()
 
 
+def _handle_session_touch(body: bytes | None) -> htt.Response:
+    """Sort persist for the members grid: session only, no DB or heavy imports."""
+    settings = Settings.load()
+    sid, session_data, _ = sess.load_session(settings.session_cookie_name)
+    if not is_logged_in(session_data):
+        response = htt.redirect(htt.url_for("/login"), status=302)
+    else:
+        form = htt.parse_form(body)
+        members_merge_client_sort(session_data, form)
+        response = htt.empty(204)
+    sess.save_session(sid, {k: v for k, v in session_data.items() if k != "_destroyed"})
+    sess.attach_session_cookie(
+        response,
+        sid,
+        cookie_name=settings.session_cookie_name,
+        max_age=settings.session_max_age,
+    )
+    return response
+
+
 def handle_request(body: bytes | None = None) -> htt.Response:
+    # CGI PATH_INFO under /index.py/static/... (or ErrorDocument → index.py).
+    # Serve files without opening the DB or touching sessions.
+    method = htt.request_method()
+    path = htt.request_path()
+    if method in ("GET", "HEAD") and path.startswith("/static/"):
+        return serve_static(path)
+
+    if method == "GET" and path == "/health":
+        return htt.text("OK")
+
+    # Members grid sort beacon — keep this path free of DB + export/page imports.
+    if method == "POST" and path == "/members/session-touch":
+        return _handle_session_touch(body)
+
+    # Deferred so static + session-touch avoid loading pages/exports/jinja.
+    from dvra.routes import dispatch
+
     settings = Settings.load()
     sid, session_data, _ = sess.load_session(settings.session_cookie_name)
     conn = dbmod.connect(settings)

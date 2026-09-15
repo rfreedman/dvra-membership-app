@@ -8,10 +8,20 @@ from dvra.app import handle_request
 from dvra.passwords import hash_password
 
 
-def _run(method: str, path: str, body: str = "", cookie: str = "", dsn: str = "") -> tuple[int, dict[str, str], bytes]:
+def _run(
+    method: str,
+    path: str,
+    body: str = "",
+    cookie: str = "",
+    dsn: str = "",
+    *,
+    script_name: str = "",
+    request_uri: str = "",
+    redirect_url: str = "",
+) -> tuple[int, dict[str, str], bytes]:
     os.environ["REQUEST_METHOD"] = method
     os.environ["PATH_INFO"] = path
-    os.environ["SCRIPT_NAME"] = ""
+    os.environ["SCRIPT_NAME"] = script_name
     os.environ["QUERY_STRING"] = ""
     os.environ["CONTENT_TYPE"] = "application/x-www-form-urlencoded"
     raw = body.encode("utf-8")
@@ -22,9 +32,29 @@ def _run(method: str, path: str, body: str = "", cookie: str = "", dsn: str = ""
         os.environ["HTTP_COOKIE"] = cookie
     else:
         os.environ.pop("HTTP_COOKIE", None)
+    if request_uri:
+        os.environ["REQUEST_URI"] = request_uri
+    else:
+        os.environ.pop("REQUEST_URI", None)
+    if redirect_url:
+        os.environ["REDIRECT_URL"] = redirect_url
+    else:
+        os.environ.pop("REDIRECT_URL", None)
     resp = handle_request(raw)
     headers = {n.lower(): v for n, v in resp.headers}
     return resp.status, headers, resp.body
+
+
+def test_cgi_serves_static_path_info(tmp_path: Path):
+    dsn = "sqlite:" + str(tmp_path / "t.sqlite")
+    status, headers, body = _run("GET", "/static/style.css", dsn=dsn)
+    assert status == 200
+    assert "text/css" in headers.get("content-type", "")
+    assert b"{" in body or b"." in body
+    status, headers, body = _run("GET", "/static/../index.py", dsn=dsn)
+    assert status == 404
+    status, headers, body = _run("GET", "/static/no-such-file.css", dsn=dsn)
+    assert status == 404
 
 
 def test_health_and_login_roundtrip(tmp_path: Path):
@@ -66,7 +96,8 @@ def _session_id(headers: dict[str, str]) -> str:
 def test_manager_can_use_app_but_not_admin(tmp_path: Path):
     db = tmp_path / "t.sqlite"
     dsn = "sqlite:" + str(db)
-    _run("GET", "/health", dsn=dsn)
+    # /login goes through full bootstrap (schema); /health is a no-DB fast path.
+    _run("GET", "/login", dsn=dsn)
     conn = sqlite3.connect(db)
     conn.execute(
         "INSERT INTO managers (username, password_hash) VALUES (?, ?)",
@@ -88,10 +119,29 @@ def test_manager_can_use_app_but_not_admin(tmp_path: Path):
     status, headers, body = _run("GET", "/admin", cookie=cookie, dsn=dsn)
     assert status == 303
     assert headers.get("location", "").endswith("/")
+    assert b"Current membership year" not in body
+    assert b"Create manager" not in body
 
-    status, headers, body = _run("POST", "/managers/create", body="username=x&password=y", cookie=cookie, dsn=dsn)
+    # DreamHost-style: /admin hits index.py with empty PATH_INFO but REQUEST_URI=/admin
+    status, headers, body = _run(
+        "GET",
+        "",
+        cookie=cookie,
+        dsn=dsn,
+        script_name="/index.py",
+        request_uri="/admin",
+        redirect_url="/admin",
+    )
     assert status == 303
     assert headers.get("location", "").endswith("/")
+    assert b"Create manager" not in body
+
+    status, headers, body = _run(
+        "POST", "/managers/create", body="username=x&password=y", cookie=cookie, dsn=dsn
+    )
+    assert status == 303
+    assert headers.get("location", "").endswith("/")
+    assert "/admin" not in headers.get("location", "")
 
 
 def test_admin_rejects_username_already_used_as_manager(tmp_path: Path):

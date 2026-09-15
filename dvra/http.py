@@ -32,6 +32,43 @@ def path_info() -> str:
     return raw
 
 
+def request_path() -> str:
+    """App path for routing: PATH_INFO, or URI recovery for CGI ErrorDocument / pretty URLs.
+
+    When Apache runs index.py for a missing path like /admin (ErrorDocument) or a
+    rewrite, PATH_INFO is sometimes empty while REQUEST_URI / REDIRECT_URL still
+    carries /admin. Prefer a non-trivial PATH_INFO; otherwise derive from those.
+    """
+    raw = env("PATH_INFO", "").strip()
+    if raw not in ("", "/"):
+        path = raw if raw.startswith("/") else f"/{raw}"
+        if path.startswith("/index.py/"):
+            path = path[len("/index.py") :]
+        elif path == "/index.py":
+            path = "/"
+        return path.rstrip("/") or "/"
+
+    script = script_name().rstrip("/")
+    for key in ("REDIRECT_URL", "REQUEST_URI"):
+        uri = env(key, "").split("?", 1)[0].strip()
+        if not uri.startswith("/"):
+            continue
+        if script and (uri == script or uri.startswith(script + "/")):
+            rest = uri[len(script) :] or "/"
+            if not rest.startswith("/"):
+                rest = "/" + rest
+            return rest.rstrip("/") or "/"
+        # Bare document-root paths (/admin, /login) when PATH_INFO was empty.
+        if uri in ("/", "/index.py") or uri.endswith("/index.py"):
+            continue
+        if "index.py/" in uri:
+            # /index.py/admin without SCRIPT_NAME set
+            rest = uri.split("index.py", 1)[1] or "/"
+            return rest.rstrip("/") or "/"
+        return uri.rstrip("/") or "/"
+    return "/"
+
+
 def app_base() -> str:
     """Prefix for app URLs. Empty when SCRIPT_NAME is / or blank (pretty host mapping)."""
     name = script_name().rstrip("/")

@@ -60,10 +60,13 @@ def is_admin(session: dict[str, Any]) -> bool:
 def current_role(session: dict[str, Any]) -> Role | None:
     role = session.get("role")
     user_id = session.get("user_id")
-    if role in (ROLE_ADMIN, ROLE_MANAGER) and user_id is not None:
-        return role  # type: ignore[return-value]
-    # Pre-role sessions stored only admin_id.
-    if session.get("admin_id") is not None:
+    # Explicit manager role always wins (never elevate via legacy admin_id).
+    if role == ROLE_MANAGER and user_id is not None:
+        return ROLE_MANAGER
+    if role == ROLE_ADMIN and user_id is not None:
+        return ROLE_ADMIN
+    # Pre-role sessions stored only admin_id (no role key).
+    if role is None and session.get("admin_id") is not None:
         return ROLE_ADMIN
     return None
 

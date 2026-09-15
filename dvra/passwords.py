@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-import bcrypt
-
 
 def hash_password(raw: str) -> str:
+    import bcrypt
+
     return bcrypt.hashpw(raw.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(raw: str, stored: str) -> bool:
+    import bcrypt
+
     if not stored:
         return False
     hashed = stored
