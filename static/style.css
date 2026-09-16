@@ -32,6 +32,11 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   font-family: var(--font-body);
@@ -39,11 +44,12 @@ body {
   line-height: 1.5;
   color: var(--color-text);
   background: var(--color-page);
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100%;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 a {
@@ -57,8 +63,8 @@ a:hover {
 }
 
 .site-header {
-  position: sticky;
-  top: 0;
+  position: relative;
+  flex: 0 0 auto;
   z-index: 1000;
   background: linear-gradient(180deg, var(--color-header-top) 0%, var(--color-header-bottom) 100%);
   color: #f8fafc;
@@ -177,42 +183,47 @@ a:hover {
 }
 
 .site-main {
-  flex: 1;
+  flex: 1 1 auto;
   margin: 0 auto;
   padding: 1.25rem 1rem 1rem;
   width: 100%;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .standard-page-scroll {
   flex: 1 1 auto;
   min-height: 0;
-  height: 100%;
-  overflow-y: auto;
+  height: auto;
+  overflow-y: visible;
   overflow-x: hidden;
   padding-bottom: 0.5rem;
 }
 
 .grid-page {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  flex: 1 1 auto;
-  height: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  width: 100%;
   min-height: 0;
+  height: auto;
 }
 
 .grid-page-top {
+  flex: 0 0 auto;
   min-height: 0;
 }
 
 .grid-page-body {
   display: flex;
   flex-direction: column;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 h2,
