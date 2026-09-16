@@ -58,6 +58,14 @@ def handle_request(body: bytes | None = None) -> htt.Response:
     if method == "GET" and path == "/health":
         return htt.text("OK")
 
+    # Public WordPress roster — no session files on every embed/API hit.
+    if path == "/api/roster" or path == "/api/roster/embed":
+        from dvra.pages.public_roster import try_handle_public_roster
+
+        roster = try_handle_public_roster(method, path)
+        if roster is not None:
+            return roster
+
     # Members grid sort beacon — keep this path free of DB + export/page imports.
     if method == "POST" and path == "/members/session-touch":
         return _handle_session_touch(body)

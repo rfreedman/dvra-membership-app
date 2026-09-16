@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DVRA Member Roster {{ membership_year }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Match w2zq.com Responsive Pro dark-blue skin + site body styles */
+      --ink: #555555;
+      --heading: #333333;
+      --muted: #777777;
+      --line: #d0d0d0;
+      --brand: #246694;
+      --brand-light: #2e82bd;
+      --brand-dark: #1a4a6b;
+      --link: #1e73be;
+      --bg: #f9f9f9;
+      --surface: #ffffff;
+      --font: "Open Sans", Arial, Helvetica, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0.75rem 1rem 1rem;
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    h1 {
+      font-family: var(--font);
+      font-size: 1.25rem;
+      margin: 0 0 0.35rem;
+      font-weight: 700;
+      color: var(--heading);
+    }
+    .meta {
+      margin: 0 0 0.85rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-family: var(--font);
+    }
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin: 0;
+      padding: 0 0.25rem;
+      font-family: var(--font);
+      border-bottom: 1px solid var(--brand);
+      position: relative;
+    }
+    .tabs button {
+      appearance: none;
+      position: relative;
+      margin: 0 0.15rem -1px 0;
+      border: 1px solid var(--line);
+      border-bottom-color: var(--brand);
+      background: #eee;
+      color: var(--brand);
+      padding: 0.45rem 1rem;
+      border-radius: 4px 4px 0 0;
+      cursor: pointer;
+      font-family: var(--font);
+      font-size: 0.9rem;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+    .tabs button[aria-selected="false"]:hover {
+      background: #e2e8f0;
+      color: var(--brand-dark);
+    }
+    .tabs button[aria-selected="true"] {
+      background: var(--surface);
+      border-color: var(--brand);
+      border-bottom-color: var(--surface);
+      color: var(--heading);
+      z-index: 1;
+    }
+    .tabs button:focus-visible {
+      outline: 2px solid var(--link);
+      outline-offset: 2px;
+    }
+    .panel {
+      display: none;
+      border: 1px solid var(--brand);
+      border-top: none;
+      background: var(--surface);
+      padding: 0;
+    }
+    .panel.is-active { display: block; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      font-family: var(--font);
+      font-size: 0.95rem;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 0.4rem 0.55rem;
+      text-align: left;
+      vertical-align: top;
+      font-family: var(--font);
+    }
+    th {
+      background: var(--brand);
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    td.empty {
+      color: var(--muted);
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <!-- h1>Member roster</h1 -->
+  <!-- p class="meta">Current members for membership year {{ membership_year }}</p  -->
+  <div class="tabs" role="tablist" aria-label="Roster sort order">
+    <button type="button" role="tab" id="tab-name" aria-controls="panel-name" aria-selected="true">By Name</button>
+    <button type="button" role="tab" id="tab-call" aria-controls="panel-call" aria-selected="false">By Callsign</button>
+  </div>
+  <div class="panel is-active" role="tabpanel" id="panel-name" aria-labelledby="tab-name">
+    <table>
+      <thead><tr><th scope="col">Last name</th><th scope="col">First name</th><th scope="col">Call sign</th></tr></thead>
+      <tbody>
+        {% if by_name %}
+          {% for member in by_name %}
+          <tr>
+            <td>{{ member.last_name }}</td>
+            <td>{{ member.first_name }}</td>
+            <td>{% if member.call_sign %}{{ member.call_sign }}{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="3" class="empty">No current members.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+  <div class="panel" role="tabpanel" id="panel-call" aria-labelledby="tab-call" hidden>
+    <table>
+      <thead><tr><th scope="col">Last name</th><th scope="col">First name</th><th scope="col">Call sign</th></tr></thead>
+      <tbody>
+        {% if by_callsign %}
+          {% for member in by_callsign %}
+          <tr>
+            <td>{{ member.last_name }}</td>
+            <td>{{ member.first_name }}</td>
+            <td>{% if member.call_sign %}{{ member.call_sign }}{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="3" class="empty">No current members.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+  <script>
+  (function () {
+    var tabs = [
+      { btn: document.getElementById("tab-name"), panel: document.getElementById("panel-name") },
+      { btn: document.getElementById("tab-call"), panel: document.getElementById("panel-call") }
+    ];
+    function activate(target) {
+      tabs.forEach(function (t) {
+        var on = t === target;
+        t.btn.setAttribute("aria-selected", on ? "true" : "false");
+        t.panel.classList.toggle("is-active", on);
+        t.panel.hidden = !on;
+      });
+    }
+    tabs.forEach(function (t) {
+      t.btn.addEventListener("click", function () { activate(t); });
+    });
+  })();
+  </script>
+</body>
+</html>

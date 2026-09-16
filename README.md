@@ -54,6 +54,7 @@ Settings load from the process environment. If a **`.env`** file exists in the r
 | `DVRA_DISPLAY_ERRORS` | Include a traceback in HTTP 500 responses (`1` / `true` / `yes` / `on`) | off |
 | `DVRA_SESSION_COOKIE` | Session cookie name | `dvra_session` |
 | `DVRA_SESSION_MAX_AGE` | Session cookie Max-Age in seconds | `2592000` (30 days) |
+| `DVRA_ROSTER_CORS_ORIGIN` | `Access-Control-Allow-Origin` for the public roster JSON API | `https://w2zq.com` |
 
 PDF fonts, membership year range (2000–2100), and the Tabulator CDN URL are code constants, not env.
 
@@ -95,6 +96,22 @@ Member and report downloads are CSV (UTF-8 with BOM), XLSX, and PDF. PDFs embed 
 ## Hosting
 
 Document root is this directory (the one that contains `index.py`, `dvra/`, `templates/`, and `static/`). Nested pages are `/index.py/...` unless the host maps unknown paths to `index.py` with PATH_INFO. Templates link CSS/JS/images as **`/static/...`**. Apache should serve those as real files; if a request still reaches CGI as `PATH_INFO=/static/...` (for example `/index.py/static/style.css`), the app serves the file itself. `.htaccess` also rewrites `/index.py/static/` to `/static/`.
+
+### Public member roster (WordPress)
+
+Unauthenticated endpoints expose **current-year** members only (name + call sign), matching the admin roster rule. No email, address, phone, or notes.
+
+| URL | Purpose |
+| --- | --- |
+| `GET /api/roster` (or `/index.py/api/roster`) | JSON: `membership_year`, `generated_at`, `by_name`, `by_callsign` |
+| `OPTIONS /api/roster` | CORS preflight (204) |
+| `GET /api/roster/embed` | Lightweight HTML with **By Name** / **By Callsign** tabs for an iframe |
+
+CORS: `Access-Control-Allow-Origin` is `DVRA_ROSTER_CORS_ORIGIN` (default `https://w2zq.com`). Responses use `Cache-Control: public, max-age=300` and do **not** set a session cookie.
+
+**WordPress iframe (closest to the old Google Sheet):** set the iframe `src` to `https://<membership-host>/index.py/api/roster/embed` (or `/api/roster/embed` if rewrites apply). Size the iframe to the content height (or use a small parent resize script).
+
+**WordPress JSON:** `fetch('https://<membership-host>/index.py/api/roster')` and build two panels from `by_name` / `by_callsign`.
 
 ### DreamHost CGI (`.htaccess`)
 

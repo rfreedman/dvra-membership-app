@@ -36,6 +36,7 @@ class Settings:
     display_errors: bool
     session_cookie_name: str
     session_max_age: int
+    roster_cors_origin: str
 
     @classmethod
     def load(cls) -> Settings:
@@ -54,4 +55,5 @@ class Settings:
             display_errors=_truthy(os.environ.get("DVRA_DISPLAY_ERRORS")),
             session_cookie_name=_nz(os.environ.get("DVRA_SESSION_COOKIE"), "dvra_session"),
             session_max_age=max_age,
+            roster_cors_origin=_nz(os.environ.get("DVRA_ROSTER_CORS_ORIGIN"), "https://w2zq.com"),
         )

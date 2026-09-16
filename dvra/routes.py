@@ -46,6 +46,13 @@ def dispatch(conn: sqlite3.Connection, session: dict[str, Any], form: dict[str, 
 def _match_public(method: str, path: str, ctx: RequestCtx) -> htt.Response | None:
     if method == "GET" and path == "/health":
         return htt.text("OK")
+    # Prefer app.py fast path (no session) for /api/roster*; keep here as fallback.
+    if path in ("/api/roster", "/api/roster/embed"):
+        from dvra.pages.public_roster import try_handle_public_roster
+
+        roster = try_handle_public_roster(method, path)
+        if roster is not None:
+            return roster
     if method == "GET" and path == "/login":
         return login_pages.handle_login_get(ctx)
     if method == "POST" and path == "/login":
