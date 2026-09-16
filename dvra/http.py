@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from dataclasses import dataclass, field
@@ -194,6 +195,13 @@ def html(body: str, status: int = 200, extra_headers: list[tuple[str, str]] | No
 def text(body: str, status: int = 200, content_type: str = "text/plain; charset=utf-8") -> Response:
     r = Response(status=status, body=body.encode("utf-8"))
     r.set_header("Content-Type", content_type)
+    return r
+
+
+def json_body(payload: Any, status: int = 200) -> Response:
+    raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    r = Response(status=status, body=raw)
+    r.set_header("Content-Type", "application/json; charset=utf-8")
     return r
 
 

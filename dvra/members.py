@@ -28,7 +28,8 @@ class MemberRepository:
             """
             SELECT id, last_name, first_name, call_sign, email, phone,
                    address_street, address_city, address_state, address_zip,
-                   license_class_id, membership_type_id, arrl_member, key_number, paid_through
+                   license_class_id, membership_type_id, arrl_member, key_number, paid_through,
+                   notes
             FROM members WHERE id = ? LIMIT 1
             """,
             (id_,),
@@ -59,6 +60,7 @@ class MemberRepository:
             "arrl_member": bool(row["arrl_member"]),
             "key_number": int(row["key_number"]) if row["key_number"] is not None else None,
             "paid_through": s("paid_through"),
+            "notes": s("notes"),
         }
 
     def find_id_by_nonnull_call_sign(self, call_sign: str) -> int | None:
@@ -127,8 +129,8 @@ class MemberRepository:
                 last_name, first_name, call_sign, email, phone,
                 address_street, address_city, address_state, address_zip,
                 license_class_id, membership_type_id, arrl_member, key_number, paid_through,
-                created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                notes, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """,
             (
                 data["last_name"],
@@ -145,6 +147,7 @@ class MemberRepository:
                 1 if data["arrl_member"] else 0,
                 data["key_number"],
                 data["paid_through"],
+                data.get("notes"),
             ),
         )
         self.conn.commit()
@@ -159,6 +162,7 @@ class MemberRepository:
                 last_name = ?, first_name = ?, call_sign = ?, email = ?, phone = ?,
                 address_street = ?, address_city = ?, address_state = ?, address_zip = ?,
                 license_class_id = ?, membership_type_id = ?, arrl_member = ?, key_number = ?,
+                notes = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -176,10 +180,22 @@ class MemberRepository:
                 data["membership_type_id"],
                 1 if data["arrl_member"] else 0,
                 data["key_number"],
+                data.get("notes"),
                 id_,
             ),
         )
         self.conn.commit()
+
+    def update_member_notes(self, id_: int, notes: str | None) -> bool:
+        cur = self.conn.execute(
+            """
+            UPDATE members SET notes = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (notes, id_),
+        )
+        self.conn.commit()
+        return cur.rowcount > 0
 
     def delete_member_by_id(self, id_: int) -> bool:
         cur = self.conn.execute("DELETE FROM members WHERE id = ?", (id_,))

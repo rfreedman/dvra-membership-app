@@ -71,3 +71,19 @@
     <div id="members-grid" class="members-tabulator-wrap" role="grid" aria-label="Members"></div>
   </div>
 </div>
+
+<dialog id="member-note-dialog" class="member-note-dialog">
+  <form method="dialog" class="dialog-close-corner-form">
+    <button type="submit" class="dialog-close-corner-btn" aria-label="Close">×</button>
+  </form>
+  <h3 id="member-note-dialog-title">Member note</h3>
+  <p id="member-note-dialog-error" class="error" hidden></p>
+  <label class="full-width" for="member-note-textarea">Notes
+    <textarea id="member-note-textarea" rows="8" placeholder="Optional"></textarea>
+  </label>
+  <div class="form-actions-row">
+    <button type="button" id="member-note-save" class="btn-primary">Save</button>
+    <button type="button" id="member-note-clear" class="btn-danger">Clear</button>
+    <button type="button" id="member-note-cancel">Cancel</button>
+  </div>
+</dialog>

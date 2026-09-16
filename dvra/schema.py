@@ -8,7 +8,7 @@ from datetime import date
 from dvra.paths import SCHEMA_PATH
 
 # Bump when schema.sql or migrate_* logic changes so ensure() re-runs.
-SCHEMA_USER_VERSION = 3
+SCHEMA_USER_VERSION = 4
 
 
 def ensure(conn: sqlite3.Connection) -> None:
@@ -23,6 +23,7 @@ def ensure(conn: sqlite3.Connection) -> None:
             conn.execute(stmt)
     migrate_drop_license_and_membership_labels(conn)
     migrate_app_settings_and_payment_membership_year(conn)
+    migrate_member_notes(conn)
     conn.execute(f"PRAGMA user_version = {SCHEMA_USER_VERSION}")
     conn.commit()
 
@@ -72,8 +73,13 @@ def migrate_app_settings_and_payment_membership_year(conn: sqlite3.Connection) -
     )
 
 
+def migrate_member_notes(conn: sqlite3.Connection) -> None:
+    if not sqlite_table_has_column(conn, "members", "notes"):
+        conn.execute("ALTER TABLE members ADD COLUMN notes TEXT")
+
+
 def sqlite_table_has_column(conn: sqlite3.Connection, table: str, column: str) -> bool:
-    allowed = {"license_classes", "membership_types", "payments", "app_settings"}
+    allowed = {"license_classes", "membership_types", "payments", "app_settings", "members"}
     if table not in allowed:
         return False
     rows = conn.execute(f"PRAGMA table_info({table})").fetchall()

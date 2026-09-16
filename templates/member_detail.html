@@ -86,6 +86,11 @@
       <p class="member-form-readonly-text" id="member-paid-through">{% if member.paid_through %}{{ member.paid_through }}{% else %}—{% endif %}</p>
       <p class="member-form-help"><a class="member-edit-leave-risk" href="{{ url_for('/members/' ~ member.id ~ '/payments') }}">Edit payments</a> to change paid-through date.</p>
     </div>
+
+    <div class="member-form-field member-form-field--full">
+      <label for="edit-notes">Notes</label>
+      <textarea id="edit-notes" class="member-form-control" name="notes" rows="5" placeholder="Optional">{{ member.notes or '' }}</textarea>
+    </div>
   </form>
 
   <div class="member-form-actions-row">

@@ -185,6 +185,7 @@ class MemberListRepository:
                    m.arrl_member AS arrl_member,
                    m.key_number AS key_number,
                    m.paid_through AS paid_through,
+                   (m.notes IS NOT NULL AND TRIM(m.notes) <> '') AS has_note,
                    lc.name AS lc_name,
                    mt.name AS mt_name
             FROM members m
@@ -214,6 +215,7 @@ class MemberListRepository:
             "arrl_member": bool(r["arrl_member"]),
             "key_number": int(r["key_number"]) if r["key_number"] is not None else None,
             "paid_through": str(r["paid_through"] or ""),
+            "has_note": bool(r["has_note"]),
         }
 
 

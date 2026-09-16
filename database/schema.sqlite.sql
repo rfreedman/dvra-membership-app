@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS members (
     arrl_member INTEGER NOT NULL DEFAULT 0,
     key_number INTEGER,
     paid_through TEXT,
+    notes TEXT,
     created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
     updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );

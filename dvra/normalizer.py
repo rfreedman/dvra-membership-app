@@ -81,6 +81,7 @@ def member_create_from_form(body: dict[str, Any], paid_through: str | None) -> d
         "arrl_member": _form_str(body, "arrl_member") == "yes",
         "key_number": int(key_raw) if key_raw.isdigit() else None,
         "paid_through": paid_through,
+        "notes": strip_optional(_form_str(body, "notes")),
     }
 
 

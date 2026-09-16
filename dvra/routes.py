@@ -131,6 +131,12 @@ def _match_authed(method: str, path: str, ctx: RequestCtx) -> htt.Response | Non
     m = _m(path, r"/members/(\d+)/delete")
     if method == "POST" and m:
         return member_pages.handle_member_delete(ctx, int(m.group(1)))
+    m = _m(path, r"/members/(\d+)/note")
+    if method == "GET" and m:
+        return member_pages.handle_member_note_get(ctx, int(m.group(1)))
+    m = _m(path, r"/members/(\d+)/note")
+    if method == "POST" and m:
+        return member_pages.handle_member_note_post(ctx, int(m.group(1)))
     m = _m(path, r"/members/(\d+)/payments/new")
     if method == "POST" and m:
         return member_pages.handle_payment_new(ctx, int(m.group(1)))

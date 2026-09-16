@@ -99,6 +99,7 @@ def handle_members_list(ctx: RequestCtx) -> htt.Response:
         sort_dir=params["sort_dir"],
         base=htt.app_base(),
         members_sort_touch_url=htt.url_for("/members/session-touch"),
+        members_note_url_prefix=htt.url_for("/members"),
     )
     tab_css = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.2/dist/css/tabulator.min.css">'
     return html_page(
@@ -226,6 +227,39 @@ def handle_member_delete(ctx: RequestCtx, id_: int) -> htt.Response:
     if id_ > 0:
         MemberRepository(ctx["conn"]).delete_member_by_id(id_)
     return htt.redirect(htt.url_for("/"))
+
+
+def _member_note_label(member: dict[str, Any]) -> str:
+    name = f"{member['last_name']}, {member['first_name']}"
+    call = (member.get("call_sign") or "").strip()
+    if call:
+        return f"{name} ({call})"
+    return name
+
+
+def handle_member_note_get(ctx: RequestCtx, id_: int) -> htt.Response:
+    members_repo = MemberRepository(ctx["conn"])
+    member = members_repo.find_member_by_id(id_) if id_ > 0 else None
+    if member is None:
+        return htt.json_body({"error": "Not found"}, status=404)
+    return htt.json_body(
+        {
+            "id": member["id"],
+            "notes": member.get("notes") or "",
+            "label": _member_note_label(member),
+            "has_note": bool((member.get("notes") or "").strip()),
+        }
+    )
+
+
+def handle_member_note_post(ctx: RequestCtx, id_: int) -> htt.Response:
+    members_repo = MemberRepository(ctx["conn"])
+    if id_ <= 0 or members_repo.find_member_by_id(id_) is None:
+        return htt.json_body({"error": "Not found"}, status=404)
+    notes = normalizer.strip_optional(str(ctx["form"].get("notes") or ""))
+    if not members_repo.update_member_notes(id_, notes):
+        return htt.json_body({"error": "Not found"}, status=404)
+    return htt.json_body({"ok": True, "has_note": bool(notes), "notes": notes or ""})
 
 
 def handle_payment_new(ctx: RequestCtx, member_id: int) -> htt.Response:

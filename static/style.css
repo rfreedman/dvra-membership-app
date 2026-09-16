@@ -584,7 +584,8 @@ h2 {
   white-space: nowrap;
 }
 
-.members-tabulator-wrap .tabulator-cell.members-tabulator-actions a.btn-primary {
+.members-tabulator-wrap .tabulator-cell.members-tabulator-actions a.btn-primary,
+.members-tabulator-wrap .tabulator-cell.members-tabulator-actions button.btn-primary {
   display: inline-block;
   vertical-align: middle;
   padding: 0.1rem 0.35rem;
@@ -596,12 +597,61 @@ h2 {
   color: #fff !important;
   text-decoration: none;
   border: none;
+  cursor: pointer;
+  font-family: var(--font-ui);
 }
 
-.members-tabulator-wrap .tabulator-cell.members-tabulator-actions a.btn-primary:hover {
+.members-tabulator-wrap .tabulator-cell.members-tabulator-actions a.btn-primary:hover,
+.members-tabulator-wrap .tabulator-cell.members-tabulator-actions button.btn-primary:hover {
   background: var(--color-header-bottom);
   color: #fff !important;
   text-decoration: none;
+}
+
+.members-tabulator-wrap .tabulator-cell.members-tabulator-actions button.members-note-btn--has {
+  background: #0f766e !important;
+}
+
+.members-tabulator-wrap .tabulator-cell.members-tabulator-actions button.members-note-btn--has:hover {
+  background: #0d9488 !important;
+}
+
+.member-note-dialog {
+  width: min(32rem, calc(100vw - 2rem));
+  max-width: 100%;
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: 6px;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.member-note-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.member-note-dialog textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 8rem;
+  font-family: var(--font-ui);
+}
+
+.member-form-field--full {
+  grid-column: 1 / -1;
+}
+
+.payment-notes-cell {
+  min-width: 12rem;
+  vertical-align: top;
+}
+
+.payment-notes-input {
+  width: 100%;
+  min-width: 10rem;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  line-height: 1.35;
 }
 
 .members-tabulator-wrap.tabulator .tabulator-row .tabulator-cell.members-col-fixed-data {

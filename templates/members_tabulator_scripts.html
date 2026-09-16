@@ -6,11 +6,20 @@
   const SERVER_SORT_DIR = {{ sort_dir|tojson }};
   const APP_BASE = {{ base|tojson }};
   const MEMBERS_SORT_TOUCH_URL = {{ members_sort_touch_url|tojson }};
+  const MEMBERS_NOTE_URL_PREFIX = {{ members_note_url_prefix|tojson }};
 
   const dash = "—";
   const form = document.getElementById("members-filter-form");
   const currentOnlyField = document.getElementById("members-current-only-field");
   const currentOnlyCb = document.getElementById("members-current-only-cb");
+  const noteDialog = document.getElementById("member-note-dialog");
+  const noteTitle = document.getElementById("member-note-dialog-title");
+  const noteError = document.getElementById("member-note-dialog-error");
+  const noteTextarea = document.getElementById("member-note-textarea");
+  const noteSave = document.getElementById("member-note-save");
+  const noteClear = document.getElementById("member-note-clear");
+  const noteCancel = document.getElementById("member-note-cancel");
+  let noteMemberId = 0;
 
   function syncCurrentOnlyHiddenFromCheckbox() {
     currentOnlyField.value = currentOnlyCb.checked ? "yes" : "no";
@@ -19,6 +28,94 @@
   function syncExportLinks() {
     if (typeof window.dvraSyncExportLinks === "function") {
       window.dvraSyncExportLinks();
+    }
+  }
+
+  function noteUrl(id) {
+    return MEMBERS_NOTE_URL_PREFIX + "/" + id + "/note";
+  }
+
+  function setNoteError(msg) {
+    if (!noteError) return;
+    if (msg) {
+      noteError.textContent = msg;
+      noteError.hidden = false;
+    } else {
+      noteError.textContent = "";
+      noteError.hidden = true;
+    }
+  }
+
+  function updateRowHasNote(id, hasNote) {
+    const rows = table.getRows ? table.getRows() : [];
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const data = row.getData();
+      if (Number(data.id) !== Number(id)) continue;
+      const done = function () {
+        if (typeof row.reformat === "function") row.reformat();
+      };
+      const updated = row.update({ has_note: !!hasNote });
+      if (updated && typeof updated.then === "function") {
+        updated.then(done);
+      } else {
+        done();
+      }
+      return;
+    }
+  }
+
+  async function openMemberNote(id, fallbackLabel) {
+    if (!noteDialog || typeof noteDialog.showModal !== "function") {
+      return;
+    }
+    noteMemberId = id;
+    setNoteError("");
+    noteTextarea.value = "";
+    noteTitle.textContent = fallbackLabel || "Member note";
+    noteDialog.showModal();
+    try {
+      const resp = await fetch(noteUrl(id), {
+        method: "GET",
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+      });
+      if (!resp.ok) {
+        setNoteError("Could not load note.");
+        return;
+      }
+      const data = await resp.json();
+      noteTitle.textContent = data.label || fallbackLabel || "Member note";
+      noteTextarea.value = data.notes || "";
+    } catch (e) {
+      setNoteError("Could not load note.");
+    }
+  }
+
+  async function saveMemberNote(notes) {
+    setNoteError("");
+    const body = new URLSearchParams();
+    body.set("notes", notes);
+    try {
+      const resp = await fetch(noteUrl(noteMemberId), {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json",
+        },
+        body: body.toString(),
+      });
+      if (!resp.ok) {
+        setNoteError("Could not save note.");
+        return false;
+      }
+      const data = await resp.json();
+      updateRowHasNote(noteMemberId, !!data.has_note);
+      return true;
+    } catch (e) {
+      setNoteError("Could not save note.");
+      return false;
     }
   }
 
@@ -57,17 +154,37 @@
         sortable: false,
         headerSort: false,
         hozAlign: "left",
-        width: 148,
+        width: 220,
         cssClass: "members-tabulator-actions",
         formatter: function (cell) {
-          const id = Number(cell.getValue());
+          const row = cell.getRow().getData();
+          const id = Number(row.id);
           if (!Number.isFinite(id) || id <= 0) return "";
           const viewHref = APP_BASE + "/members/" + id + "/view";
           const payHref = APP_BASE + "/members/" + id + "/payments";
+          const hasNote = !!row.has_note;
+          const noteClass = hasNote
+            ? "btn-primary members-note-btn members-note-btn--has"
+            : "btn-primary members-note-btn";
           return (
             '<a class="btn-primary" href="' + viewHref + '">Edit</a>&nbsp;' +
-            '<a class="btn-primary" href="' + payHref + '">Payments</a>'
+            '<a class="btn-primary" href="' + payHref + '">Payments</a>&nbsp;' +
+            '<button type="button" class="' + noteClass + '" data-member-id="' + id + '">Notes</button>'
           );
+        },
+        cellClick: function (e, cell) {
+          const btn = e.target.closest(".members-note-btn");
+          if (!btn) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const row = cell.getRow().getData();
+          const id = Number(btn.getAttribute("data-member-id") || row.id);
+          const label =
+            (row.last_name || "") +
+            ", " +
+            (row.first_name || "") +
+            (row.call_sign ? " (" + row.call_sign + ")" : "");
+          void openMemberNote(id, label);
         },
       },
       {
@@ -167,6 +284,26 @@
     ],
     initialSort: [{ column: SERVER_SORT_BY, dir: SERVER_SORT_DIR }],
   });
+
+  if (noteSave) {
+    noteSave.addEventListener("click", async function () {
+      const ok = await saveMemberNote(noteTextarea.value);
+      if (ok && noteDialog) noteDialog.close();
+    });
+  }
+  if (noteClear) {
+    noteClear.addEventListener("click", async function () {
+      if (!window.confirm("Clear this member note?")) return;
+      noteTextarea.value = "";
+      const ok = await saveMemberNote("");
+      if (ok && noteDialog) noteDialog.close();
+    });
+  }
+  if (noteCancel && noteDialog) {
+    noteCancel.addEventListener("click", function () {
+      noteDialog.close();
+    });
+  }
 
   form.addEventListener("submit", function () {
     syncCurrentOnlyHiddenFromCheckbox();

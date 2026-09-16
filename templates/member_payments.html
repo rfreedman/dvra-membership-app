@@ -109,8 +109,8 @@
           <td>
             <input class="payment-row-input" form="payment-row-{{ payment.id }}" name="form_number" type="text" maxlength="64" value="{{ payment.form_number or '' }}" autocomplete="off">
           </td>
-          <td>
-            <input class="payment-row-input" form="payment-row-{{ payment.id }}" name="notes" type="text" value="{{ payment.notes or '' }}">
+          <td class="payment-notes-cell">
+            <textarea class="payment-row-input payment-notes-input" form="payment-row-{{ payment.id }}" name="notes" rows="3">{{ payment.notes or '' }}</textarea>
             <form id="payment-row-{{ payment.id }}" method="post" action="{{ url_for('/payments/' ~ payment.id ~ '/edit') }}"></form>
           </td>
           <td>
