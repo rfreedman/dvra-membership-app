@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from urllib.parse import urlsplit, urlunsplit
 
 from dvra import db as dbmod
 from dvra import http as htt
@@ -11,6 +12,33 @@ from dvra import view
 from dvra.app_settings import AppSettingsRepository
 from dvra.reports import ReportsRepository
 from dvra.settings import Settings
+
+
+def allowed_roster_origins(configured: str) -> list[str]:
+    """Configured CORS origin plus its www/apex counterpart.
+
+    WordPress at w2zq.com redirects to www.w2zq.com, so postMessage and CORS
+    must accept both.
+    """
+    origin = configured.rstrip("/")
+    origins = [origin]
+    parts = urlsplit(origin)
+    host = parts.hostname or ""
+    if "." not in host:
+        return origins
+    alt_host = host[4:] if host.startswith("www.") else f"www.{host}"
+    netloc = alt_host if parts.port is None else f"{alt_host}:{parts.port}"
+    alt = urlunsplit((parts.scheme, netloc, "", "", ""))
+    if alt not in origins:
+        origins.append(alt)
+    return origins
+
+
+def _cors_origin(configured: str) -> str:
+    request_origin = htt.env("HTTP_ORIGIN").rstrip("/")
+    if request_origin in allowed_roster_origins(configured):
+        return request_origin
+    return configured
 
 
 def _cors_headers(origin: str) -> list[tuple[str, str]]:
@@ -22,7 +50,8 @@ def _cors_headers(origin: str) -> list[tuple[str, str]]:
     ]
 
 
-def _apply_cors(response: htt.Response, origin: str) -> htt.Response:
+def _apply_cors(response: htt.Response, configured: str) -> htt.Response:
+    origin = _cors_origin(configured)
     for name, value in _cors_headers(origin):
         response.set_header(name, value)
     return response
@@ -69,6 +98,7 @@ def handle_roster_embed() -> htt.Response:
         membership_year=int(payload["membership_year"]),
         by_name=payload["by_name"],
         by_callsign=payload["by_callsign"],
+        roster_allowed_origins=allowed_roster_origins(settings.roster_cors_origin),
     )
     return _apply_cors(htt.html(body), settings.roster_cors_origin)
 

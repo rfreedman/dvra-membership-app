@@ -20,6 +20,7 @@ def _run(
     dsn: str = "",
     *,
     cors_origin: str | None = None,
+    request_origin: str | None = None,
 ) -> tuple[int, dict[str, str], bytes]:
     os.environ["REQUEST_METHOD"] = method
     os.environ["PATH_INFO"] = path
@@ -36,6 +37,10 @@ def _run(
         os.environ.pop("HTTP_COOKIE", None)
     os.environ.pop("REQUEST_URI", None)
     os.environ.pop("REDIRECT_URL", None)
+    if request_origin is not None:
+        os.environ["HTTP_ORIGIN"] = request_origin
+    else:
+        os.environ.pop("HTTP_ORIGIN", None)
     if cors_origin is not None:
         os.environ["DVRA_ROSTER_CORS_ORIGIN"] = cors_origin
     else:
@@ -160,6 +165,51 @@ def test_public_roster_embed_html(tmp_path: Path):
     assert "Charlie" in text
     assert "Delta" not in text
     assert "membership year 2026" in text
+    assert "postMessage" in text
+    assert "dvra-roster" in text
+    assert "https://w2zq.com" in text
+    assert "https://www.w2zq.com" in text
+    name_html = text[text.find('id="panel-name"') : text.find('id="panel-call"')]
+    call_html = text[text.find('id="panel-call"') :]
+    assert name_html.index("Last name") < name_html.index("First name") < name_html.index("Call sign")
+    assert call_html.index("Call sign") < call_html.index("Last name") < call_html.index("First name")
+    assert '<td class="row-num">1</td>' in name_html
+    assert '<td class="row-num">1</td>' in call_html
+
+
+def test_public_roster_cors_allows_www_counterpart(tmp_path: Path):
+    dsn = _seed_roster_db(tmp_path / "roster.sqlite")
+    status, headers, _ = _run(
+        "GET",
+        "/api/roster",
+        dsn=dsn,
+        request_origin="https://www.w2zq.com",
+    )
+    assert status == 200
+    assert headers.get("access-control-allow-origin") == "https://www.w2zq.com"
+
+    status, headers, _ = _run(
+        "GET",
+        "/api/roster",
+        dsn=dsn,
+        request_origin="https://evil.example",
+    )
+    assert status == 200
+    assert headers.get("access-control-allow-origin") == "https://w2zq.com"
+
+
+def test_allowed_roster_origins_pairs_www_and_apex():
+    from dvra.pages.public_roster import allowed_roster_origins
+
+    assert allowed_roster_origins("https://w2zq.com") == [
+        "https://w2zq.com",
+        "https://www.w2zq.com",
+    ]
+    assert allowed_roster_origins("https://www.w2zq.com") == [
+        "https://www.w2zq.com",
+        "https://w2zq.com",
+    ]
+    assert allowed_roster_origins("http://localhost:8089") == ["http://localhost:8089"]
 
 
 def test_public_roster_does_not_require_login(tmp_path: Path):

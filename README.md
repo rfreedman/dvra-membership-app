@@ -54,7 +54,7 @@ Settings load from the process environment. If a **`.env`** file exists in the r
 | `DVRA_DISPLAY_ERRORS` | Include a traceback in HTTP 500 responses (`1` / `true` / `yes` / `on`) | off |
 | `DVRA_SESSION_COOKIE` | Session cookie name | `dvra_session` |
 | `DVRA_SESSION_MAX_AGE` | Session cookie Max-Age in seconds | `2592000` (30 days) |
-| `DVRA_ROSTER_CORS_ORIGIN` | `Access-Control-Allow-Origin` for the public roster JSON API | `https://w2zq.com` |
+| `DVRA_ROSTER_CORS_ORIGIN` | `Access-Control-Allow-Origin` for the public roster JSON API (`www` and apex counterparts are also accepted) | `https://w2zq.com` |
 
 PDF fonts, membership year range (2000–2100), and the Tabulator CDN URL are code constants, not env.
 
@@ -107,9 +107,32 @@ Unauthenticated endpoints expose **current-year** members only (name + call sign
 | `OPTIONS /api/roster` | CORS preflight (204) |
 | `GET /api/roster/embed` | Lightweight HTML with **By Name** / **By Callsign** tabs for an iframe |
 
-CORS: `Access-Control-Allow-Origin` is `DVRA_ROSTER_CORS_ORIGIN` (default `https://w2zq.com`). Responses use `Cache-Control: public, max-age=300` and do **not** set a session cookie.
+CORS: `Access-Control-Allow-Origin` is `DVRA_ROSTER_CORS_ORIGIN` (default `https://w2zq.com`) or its `www`/apex counterpart when the request `Origin` matches (so `w2zq.com` → `www.w2zq.com` still works). Responses use `Cache-Control: public, max-age=300` and do **not** set a session cookie. The embed posts height to the actual parent origin (apex or `www`).
 
-**WordPress iframe (closest to the old Google Sheet):** set the iframe `src` to `https://<membership-host>/index.py/api/roster/embed` (or `/api/roster/embed` if rewrites apply). Size the iframe to the content height (or use a small parent resize script).
+**WordPress iframe (closest to the old Google Sheet):** the embed reports its height with `postMessage`. Paste this Custom HTML (iframe `src` can use `/index.py/api/roster/embed` if rewrites do not apply). The `400px` height is only a placeholder until the first message arrives:
+
+```html
+<div style="width: fit-content; margin: auto;">
+  <iframe
+    id="dvra-roster"
+    title="DVRA member roster"
+    src="https://membership-app.w2zq.com/api/roster/embed"
+    style="width: 30rem; height: 400px; overflow: hidden; border: 0; margin-top: 10px;">
+  </iframe>
+</div>
+<script>
+(function () {
+  var iframe = document.getElementById("dvra-roster");
+  window.addEventListener("message", function (event) {
+    if (event.origin !== "https://membership-app.w2zq.com") return;
+    if (event.source !== iframe.contentWindow) return;
+    if (!event.data || event.data.source !== "dvra-roster") return;
+    var h = Number(event.data.height);
+    if (h > 0) iframe.style.height = h + "px";
+  });
+})();
+</script>
+```
 
 **WordPress JSON:** `fetch('https://<membership-host>/index.py/api/roster')` and build two panels from `by_name` / `by_callsign`.
 

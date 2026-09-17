@@ -23,14 +23,21 @@
       --font: "Open Sans", Arial, Helvetica, sans-serif;
     }
     * { box-sizing: border-box; }
-    body {
+    html, body {
       margin: 0;
-      padding: 0.75rem 1rem 1rem;
+      height: auto;
+      overflow: hidden;
+    }
+    body {
+      padding: 0;
       font-family: var(--font);
       font-size: 14px;
       line-height: 1.5;
       color: var(--ink);
       background: var(--bg);
+    }
+    #roster {
+      padding: 0.75rem 1rem 1rem;
     }
     h1 {
       font-family: var(--font);
@@ -117,9 +124,19 @@
       color: var(--muted);
       font-style: italic;
     }
+    th.row-num, td.row-num {
+      width: 2.25rem;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    td.row-num {
+      color: var(--muted);
+    }
   </style>
 </head>
 <body>
+  <div id="roster">
   <!-- h1>Member roster</h1 -->
   <!-- p class="meta">Current members for membership year {{ membership_year }}</p  -->
   <div class="tabs" role="tablist" aria-label="Roster sort order">
@@ -128,46 +145,72 @@
   </div>
   <div class="panel is-active" role="tabpanel" id="panel-name" aria-labelledby="tab-name">
     <table>
-      <thead><tr><th scope="col">Last name</th><th scope="col">First name</th><th scope="col">Call sign</th></tr></thead>
+      <thead><tr><th scope="col" class="row-num">#</th><th scope="col">Last name</th><th scope="col">First name</th><th scope="col">Call sign</th></tr></thead>
       <tbody>
         {% if by_name %}
           {% for member in by_name %}
           <tr>
+            <td class="row-num">{{ loop.index }}</td>
             <td>{{ member.last_name }}</td>
             <td>{{ member.first_name }}</td>
             <td>{% if member.call_sign %}{{ member.call_sign }}{% else %}—{% endif %}</td>
           </tr>
           {% endfor %}
         {% else %}
-          <tr><td colspan="3" class="empty">No current members.</td></tr>
+          <tr><td colspan="4" class="empty">No current members.</td></tr>
         {% endif %}
       </tbody>
     </table>
   </div>
   <div class="panel" role="tabpanel" id="panel-call" aria-labelledby="tab-call" hidden>
     <table>
-      <thead><tr><th scope="col">Last name</th><th scope="col">First name</th><th scope="col">Call sign</th></tr></thead>
+      <thead><tr><th scope="col" class="row-num">#</th><th scope="col">Call sign</th><th scope="col">Last name</th><th scope="col">First name</th></tr></thead>
       <tbody>
         {% if by_callsign %}
           {% for member in by_callsign %}
           <tr>
+            <td class="row-num">{{ loop.index }}</td>
+            <td>{% if member.call_sign %}{{ member.call_sign }}{% else %}—{% endif %}</td>
             <td>{{ member.last_name }}</td>
             <td>{{ member.first_name }}</td>
-            <td>{% if member.call_sign %}{{ member.call_sign }}{% else %}—{% endif %}</td>
           </tr>
           {% endfor %}
         {% else %}
-          <tr><td colspan="3" class="empty">No current members.</td></tr>
+          <tr><td colspan="4" class="empty">No current members.</td></tr>
         {% endif %}
       </tbody>
     </table>
   </div>
+  </div>
   <script>
   (function () {
+    var allowedOrigins = {{ roster_allowed_origins|tojson }};
+    var roster = document.getElementById("roster");
     var tabs = [
       { btn: document.getElementById("tab-name"), panel: document.getElementById("panel-name") },
       { btn: document.getElementById("tab-call"), panel: document.getElementById("panel-call") }
     ];
+    function parentOrigin() {
+      var candidates = [];
+      try {
+        if (location.ancestorOrigins && location.ancestorOrigins.length) {
+          candidates.push(location.ancestorOrigins[0]);
+        }
+      } catch (e) {}
+      if (document.referrer) {
+        try { candidates.push(new URL(document.referrer).origin); } catch (e) {}
+      }
+      for (var i = 0; i < candidates.length; i++) {
+        if (allowedOrigins.indexOf(candidates[i]) !== -1) return candidates[i];
+      }
+      return "";
+    }
+    function reportHeight() {
+      if (!roster || window.parent === window) return;
+      var target = parentOrigin();
+      if (!target) return;
+      parent.postMessage({ source: "dvra-roster", height: roster.offsetHeight }, target);
+    }
     function activate(target) {
       tabs.forEach(function (t) {
         var on = t === target;
@@ -175,10 +218,16 @@
         t.panel.classList.toggle("is-active", on);
         t.panel.hidden = !on;
       });
+      reportHeight();
     }
     tabs.forEach(function (t) {
       t.btn.addEventListener("click", function () { activate(t); });
     });
+    if (typeof ResizeObserver !== "undefined" && roster) {
+      new ResizeObserver(reportHeight).observe(roster);
+    }
+    window.addEventListener("load", reportHeight);
+    reportHeight();
   })();
   </script>
 </body>
