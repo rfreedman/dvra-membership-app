@@ -107,22 +107,33 @@ Unauthenticated endpoints expose **current-year** members only (name + call sign
 | `OPTIONS /api/roster` | CORS preflight (204) |
 | `GET /api/roster/embed` | Lightweight HTML with **By Name** / **By Callsign** tabs for an iframe |
 
-CORS: `Access-Control-Allow-Origin` is `DVRA_ROSTER_CORS_ORIGIN` (default `https://w2zq.com`) or its `www`/apex counterpart when the request `Origin` matches (so `w2zq.com` → `www.w2zq.com` still works). Responses use `Cache-Control: public, max-age=300` and do **not** set a session cookie. The embed posts height to the actual parent origin (apex or `www`).
+CORS: `Access-Control-Allow-Origin` is `DVRA_ROSTER_CORS_ORIGIN` (default `https://w2zq.com`) or its `www`/apex counterpart when the request `Origin` matches (so `w2zq.com` → `www.w2zq.com` still works). Responses use `Cache-Control: public, max-age=300` and do **not** set a session cookie. The embed posts height to the actual parent origin (apex or `www`), and falls back to each allowlisted origin when the parent origin is hidden (Brave).
 
-**WordPress iframe (closest to the old Google Sheet):** the embed reports its height with `postMessage`. Paste this Custom HTML (iframe `src` can use `/index.py/api/roster/embed` if rewrites do not apply). The `400px` height is only a placeholder until the first message arrives:
+**WordPress iframe (closest to the old Google Sheet):** the embed reports its height with `postMessage`. Paste this Custom HTML (iframe `src` can use `/index.py/api/roster/embed` if rewrites do not apply). Use **`width: 100%`** (not a fixed `30rem`) so the iframe fits the content column when the theme sidebar stacks under it on phones. `70vh` is only a placeholder until the first message arrives:
 
 ```html
-<div style="width: fit-content; margin: auto;">
+<div id="dvra-roster-wrap" style="width: 100%; max-width: 30rem; margin: auto;">
   <iframe
     id="dvra-roster"
     title="DVRA member roster"
     src="https://membership-app.w2zq.com/api/roster/embed"
-    style="width: 30rem; height: 400px; overflow: hidden; border: 0; margin-top: 10px;">
+    style="width: 100%; height: 70vh; min-height: 24rem; border: 0; margin-top: 10px; display: block;">
   </iframe>
 </div>
 <script>
 (function () {
   var iframe = document.getElementById("dvra-roster");
+  if (!iframe) return;
+  var wrap = document.getElementById("dvra-roster-wrap") || iframe.parentElement;
+  if (wrap) {
+    wrap.style.width = "100%";
+    wrap.style.maxWidth = "30rem";
+    wrap.style.marginLeft = "auto";
+    wrap.style.marginRight = "auto";
+  }
+  iframe.style.width = "100%";
+  iframe.style.maxWidth = "100%";
+  iframe.style.display = "block";
   window.addEventListener("message", function (event) {
     if (event.origin !== "https://membership-app.w2zq.com") return;
     if (event.source !== iframe.contentWindow) return;

@@ -167,6 +167,9 @@ def test_public_roster_embed_html(tmp_path: Path):
     assert "membership year 2026" in text
     assert "postMessage" in text
     assert "dvra-roster" in text
+    assert "scrollHeight" in text
+    assert "allowedOrigins" in text
+    assert "overflow: auto" in text
     assert "https://w2zq.com" in text
     assert "https://www.w2zq.com" in text
     name_html = text[text.find('id="panel-name"') : text.find('id="panel-call"')]
