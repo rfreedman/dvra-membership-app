@@ -37,7 +37,18 @@
     form.addEventListener("change", syncSaveState);
     syncSaveState();
 
-    form.addEventListener("submit", function () {
+    form.addEventListener("submit", function (e) {
+      const newHamId = form.getAttribute("data-new-ham-id") || "";
+      const initial = form.getAttribute("data-initial-membership") || "";
+      const select = document.getElementById("edit-membership");
+      const chosen = select ? String(select.value || "") : "";
+      if (newHamId && chosen === newHamId && initial !== newHamId) {
+        const msg = form.getAttribute("data-new-ham-confirm") || "Change this member to New Ham?";
+        if (!window.confirm(msg)) {
+          e.preventDefault();
+          return;
+        }
+      }
       allowLeaveWithoutPrompt = true;
     });
 
@@ -86,3 +97,4 @@
   });
 })();
 </script>
+{% include "member_license_call_sign_scripts.html" %}

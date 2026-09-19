@@ -1,0 +1,46 @@
+<script>
+(function () {
+  var UNLICENSED_NAME = "Unlicensed";
+
+  function selectedLicenseName(licenseSelect) {
+    if (!licenseSelect || licenseSelect.selectedIndex < 0) {
+      return "";
+    }
+    var opt = licenseSelect.options[licenseSelect.selectedIndex];
+    return opt ? (opt.getAttribute("data-license-name") || "").trim() : "";
+  }
+
+  function syncLicenseCallSign(form) {
+    var licenseSelect = form.querySelector("[id$='-license']");
+    var callInput = form.querySelector("[id$='-call']");
+    if (!licenseSelect || !callInput) {
+      return;
+    }
+    var isUnlicensed = selectedLicenseName(licenseSelect) === UNLICENSED_NAME;
+    if (isUnlicensed) {
+      callInput.value = "";
+      callInput.setAttribute("disabled", "disabled");
+      callInput.removeAttribute("required");
+    } else {
+      callInput.removeAttribute("disabled");
+      callInput.setAttribute("required", "required");
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    ["member-create-form", "member-edit-form"].forEach(function (id) {
+      var form = document.getElementById(id);
+      if (!form) {
+        return;
+      }
+      var licenseSelect = form.querySelector("[id$='-license']");
+      syncLicenseCallSign(form);
+      if (licenseSelect) {
+        licenseSelect.addEventListener("change", function () {
+          syncLicenseCallSign(form);
+        });
+      }
+    });
+  });
+})();
+</script>

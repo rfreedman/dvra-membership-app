@@ -58,6 +58,8 @@ Settings load from the process environment. If a **`.env`** file exists in the r
 
 PDF fonts, membership year range (2000–2100), and the Tabulator CDN URL are code constants, not env.
 
+On **Admin**, **Late-join extension** settings (`new_member_extension_start` and `new_ham_extension_start`, stored as `MM-DD`, defaults August 1 and November 1) control when **Create member** with an initial payment extends paid-through to December 31 of the year after the paid membership year. New Ham members in the New Ham window get the New Ham extension note; other new members in the general window get the general note.
+
 Example:
 
 ```bash
@@ -81,7 +83,7 @@ python scripts/import_from_spreadsheet.py \
   --database-url "sqlite:////absolute/path/to/var/dvra_membership.sqlite"
 ```
 
-Optional flags: `--replace` (delete existing members/payments first), `--default-membership-type "Regular"` (when the spreadsheet omits membership type).
+Optional flags: `--replace` (delete existing members/payments first), `--default-membership-type "Individual"` (when the spreadsheet omits membership type).
 
 Rewrite existing phones to US `NXX-NXX-XXXX`:
 

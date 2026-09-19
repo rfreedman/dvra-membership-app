@@ -1105,6 +1105,16 @@ input.no-spinner[type="number"] {
   max-width: 100%;
 }
 
+.member-detail-page .member-form-control:disabled,
+.member-new-page .member-form-control:disabled {
+  opacity: 0.55;
+  background: rgba(241, 245, 249, 0.95);
+  color: var(--color-muted);
+  border-color: var(--color-border);
+  cursor: not-allowed;
+  -webkit-text-fill-color: var(--color-muted);
+}
+
 .member-detail-page .member-form-readonly-text {
   margin: 0;
   font-size: 0.98rem;
@@ -1250,6 +1260,10 @@ input.no-spinner[type="number"] {
   flex: 1 1 12rem;
   min-width: 10rem;
   max-width: 28rem;
+}
+
+.admin-reference-page .admin-ref-protected-name {
+  font-weight: 600;
 }
 
 .admin-reference-page .admin-ref-add-row td {

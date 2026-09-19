@@ -6,6 +6,7 @@ import json
 import sqlite3
 from typing import Any
 
+from dvra import join_extension
 from dvra import membership_year as myear
 from dvra.reference_data import ReferenceDataRepository
 from dvra.sort_toggle import normalize_sort
@@ -132,12 +133,8 @@ def _filter_clause(f: dict[str, Any]) -> tuple[str, list[Any]]:
     current_only_flag = str(f.get("current_only") or "yes").strip().lower()
     if current_only_flag != "no":
         year = int(f.get("membership_year") or 0)
-        parts.append(
-            """EXISTS (
-                SELECT 1 FROM payments pay
-                WHERE pay.member_id = m.id AND pay.membership_year = ?
-            )"""
-        )
+        parts.append(join_extension.sql_exists_payment_current_for_year("pay"))
+        bind.append(year)
         bind.append(year)
     return " AND ".join(parts), bind
 

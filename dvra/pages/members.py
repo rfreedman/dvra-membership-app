@@ -11,7 +11,11 @@ from dvra import http as htt
 from dvra import list_params
 from dvra import member_list
 from dvra import membership_year as myear
+from dvra import join_extension
+from dvra import member_form_validation
+from dvra import new_ham
 from dvra import normalizer
+from dvra.license_class import find_unlicensed_class_id, is_unlicensed_license_class_id
 from dvra import view
 from dvra.app_settings import AppSettingsRepository
 from dvra.context import RequestCtx
@@ -19,6 +23,7 @@ from dvra.member_list import MemberListRepository
 from dvra.members import DuplicateMemberKeyNumber, MemberRepository
 from dvra.pages.common import download_export, html_page, member_not_found
 from dvra.payments import PaymentRepository
+from dvra.reference_data import find_default_membership_type_id
 
 
 def _resolve_member_list_params(conn: sqlite3.Connection, flat: dict[str, Any]) -> dict[str, Any]:
@@ -28,9 +33,58 @@ def _resolve_member_list_params(conn: sqlite3.Connection, flat: dict[str, Any]) 
     return params
 
 
+def _new_member_join_date() -> date:
+    return date.today()
+
+
 def _member_ref(ctx: RequestCtx) -> dict[str, Any]:
     repo = MemberRepository(ctx["conn"])
-    return {"license_classes": repo.list_license_classes(), "membership_types": repo.list_membership_types()}
+    return {
+        "license_classes": repo.list_license_classes(),
+        "membership_types": repo.list_membership_types(),
+        "new_ham_type_id": new_ham.find_type_id(ctx["conn"]),
+        "new_ham_convert_confirm": new_ham.NEW_HAM_CONVERT_CONFIRM,
+        "unlicensed_license_class_id": find_unlicensed_class_id(ctx["conn"]),
+    }
+
+
+def _member_detail_template_ctx(ctx: RequestCtx, member: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **_member_ref(ctx),
+        "call_sign_disabled": is_unlicensed_license_class_id(
+            ctx["conn"], member.get("license_class_id")
+        ),
+    }
+
+
+def _member_new_template_ctx(ctx: RequestCtx, body: dict[str, Any] | None = None) -> dict[str, Any]:
+    default_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
+    selected_year = default_year
+    if body is not None:
+        parsed = myear.parse_year_input(body.get("paid_for_year"))
+        if parsed is not None:
+            selected_year = parsed
+    selected_membership_type_id = find_default_membership_type_id(ctx["conn"])
+    if body is not None:
+        mt_raw = str(body.get("membership_type") or "").strip()
+        if mt_raw.isdigit():
+            selected_membership_type_id = int(mt_raw)
+    selected_license_class_id: int | None = None
+    if body is not None:
+        lic_raw = str(body.get("license_class") or "").strip()
+        if lic_raw.isdigit():
+            selected_license_class_id = int(lic_raw)
+    call_sign_disabled = is_unlicensed_license_class_id(ctx["conn"], selected_license_class_id)
+    return {
+        **_member_ref(ctx),
+        "base": htt.app_base(),
+        "default_membership_year": default_year,
+        "selected_paid_for_year": selected_year,
+        "selected_membership_type_id": selected_membership_type_id,
+        "call_sign_disabled": call_sign_disabled,
+        "membership_year_options": myear.option_years(default_year),
+        "form_values": body or {},
+    }
 
 
 def _rollover_flash(
@@ -126,39 +180,30 @@ def handle_members_export(ctx: RequestCtx, fmt: str) -> htt.Response:
 
 
 def handle_member_new_get(ctx: RequestCtx) -> htt.Response:
-    default_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
-    inner = view.render(
-        "member_new.html",
-        error=None,
-        base=htt.app_base(),
-        default_membership_year=default_year,
-        membership_year_options=myear.option_years(default_year),
-        **_member_ref(ctx),
-    )
-    return html_page(inner, "New member", ctx, active_nav="members")
+    inner = view.render("member_new.html", error=None, **_member_new_template_ctx(ctx))
+    scripts = view.render("member_license_call_sign_scripts.html")
+    return html_page(inner, "New member", ctx, active_nav="members", extra_scripts=scripts)
 
 
 def handle_member_new_post(ctx: RequestCtx) -> htt.Response:
     body = ctx["form"]
     paid_year = myear.parse_year_input(body.get("paid_for_year"))
     paid_through = myear.paid_through_iso(paid_year) if paid_year is not None else None
-    default_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
-    ref = {
-        **_member_ref(ctx),
-        "base": htt.app_base(),
-        "default_membership_year": default_year,
-        "membership_year_options": myear.option_years(default_year),
-    }
+    ref = _member_new_template_ctx(ctx, body)
     members_repo = MemberRepository(ctx["conn"])
     payments_repo = PaymentRepository(ctx["conn"])
     row = normalizer.member_create_from_form(body, paid_through)
+    scripts = view.render("member_license_call_sign_scripts.html")
 
     def fail(msg: str, status: int) -> htt.Response:
         inner = view.render("member_new.html", error=msg, **ref)
-        return html_page(inner, "New member", ctx, active_nav="members", status=status)
+        return html_page(inner, "New member", ctx, active_nav="members", extra_scripts=scripts, status=status)
 
-    if row["last_name"].strip() == "" or row["first_name"].strip() == "":
-        return fail("Could not create member.", 400)
+    val_err = member_form_validation.validate_member_row(
+        ctx["conn"], row, body, require_paid_year=True, paid_year=paid_year
+    )
+    if val_err:
+        return fail(val_err, 400)
     cs = row["call_sign"]
     if cs is not None and members_repo.find_id_by_nonnull_call_sign(cs) is not None:
         return fail("That call sign is already in use.", 409)
@@ -167,13 +212,21 @@ def handle_member_new_post(ctx: RequestCtx) -> htt.Response:
     try:
         new_id = members_repo.insert_member(row)
         if paid_year is not None:
+            join_date = _new_member_join_date()
+            initial = join_extension.resolve_new_member_initial_payment(
+                ctx["conn"],
+                join_date,
+                row["membership_type_id"],
+                paid_year,
+            )
             payments_repo.insert_payment(
                 new_id,
                 {
-                    "payment_date": date.today().isoformat(),
+                    "payment_date": join_date.isoformat(),
                     "membership_year": paid_year,
                     "membership_type_id": row["membership_type_id"],
-                    "notes": None,
+                    "paid_through": initial["paid_through"],
+                    "notes": initial["notes"],
                     "form_number": None,
                 },
             )
@@ -189,7 +242,13 @@ def handle_member_view(ctx: RequestCtx, id_: int) -> htt.Response:
     member = members_repo.find_member_by_id(id_) if id_ > 0 else None
     if member is None:
         return member_not_found(ctx)
-    inner = view.render("member_detail.html", member=member, error=None, base=htt.app_base(), **_member_ref(ctx))
+    inner = view.render(
+        "member_detail.html",
+        member=member,
+        error=None,
+        base=htt.app_base(),
+        **_member_detail_template_ctx(ctx, member),
+    )
     scripts = view.render("member_detail_scripts.html")
     return html_page(inner, "Member", ctx, extra_scripts=scripts, active_nav="members")
 
@@ -203,11 +262,20 @@ def handle_member_edit(ctx: RequestCtx, id_: int) -> htt.Response:
     scripts = view.render("member_detail_scripts.html")
 
     def fail(msg: str, status: int) -> htt.Response:
-        inner = view.render("member_detail.html", member=member, error=msg, base=htt.app_base(), **_member_ref(ctx))
+        inner = view.render(
+            "member_detail.html",
+            member=member,
+            error=msg,
+            base=htt.app_base(),
+            **_member_detail_template_ctx(ctx, member),
+        )
         return html_page(inner, "Member", ctx, extra_scripts=scripts, status=status, active_nav="members")
 
-    if row["last_name"].strip() == "" or row["first_name"].strip() == "":
-        return fail("Could not save member.", 400)
+    val_err = member_form_validation.validate_member_row(
+        ctx["conn"], row, ctx["form"], require_paid_year=False, paid_year=None
+    )
+    if val_err:
+        return fail(val_err, 400)
     eff = row["call_sign"]
     oid = members_repo.find_id_by_nonnull_call_sign(eff) if eff else None
     if eff is not None and oid is not None and oid != id_:
@@ -272,6 +340,12 @@ def handle_payment_new(ctx: RequestCtx, member_id: int) -> htt.Response:
         ctx["session"]["dvra_flash_payment_error"] = parsed["error"]
         return htt.redirect(htt.url_for(f"/members/{member_id}/payments"))
     data = parsed["data"]
+    new_ham_err = new_ham.payment_membership_type_error(
+        ctx["conn"], member_id, data["membership_type_id"]
+    )
+    if new_ham_err:
+        ctx["session"]["dvra_flash_payment_error"] = new_ham_err
+        return htt.redirect(htt.url_for(f"/members/{member_id}/payments"))
     requested = int(data["membership_year"])
     confirm = str(ctx["form"].get("confirm_year_rollover") or "") == "1"
     if payments_repo.member_has_payment_for_year(member_id, requested):
@@ -299,6 +373,12 @@ def handle_payment_edit(ctx: RequestCtx, payment_id: int) -> htt.Response:
         ctx["session"]["dvra_flash_payment_error"] = parsed["error"]
         return htt.redirect(htt.url_for(f"/members/{member_id}/payments"))
     data = parsed["data"]
+    new_ham_err = new_ham.payment_membership_type_error(
+        ctx["conn"], member_id, data["membership_type_id"], payment_id
+    )
+    if new_ham_err:
+        ctx["session"]["dvra_flash_payment_error"] = new_ham_err
+        return htt.redirect(htt.url_for(f"/members/{member_id}/payments"))
     requested = int(data["membership_year"])
     confirm = str(ctx["form"].get("confirm_year_rollover") or "") == "1"
     if payments_repo.member_has_payment_for_year(member_id, requested, payment_id):
@@ -350,6 +430,9 @@ def handle_member_payments(ctx: RequestCtx, id_: int) -> htt.Response:
         membership_types=members_repo.list_membership_types(),
         flash_error=flash,
         rollover=rollover,
+        new_ham_notice=new_ham.NEW_HAM_PAYMENTS_NOTICE
+        if new_ham.member_has_new_ham_payment(ctx["conn"], id_)
+        else None,
         default_membership_year=default_year,
         membership_year_options=myear.option_years(default_year),
         base=htt.app_base(),

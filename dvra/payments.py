@@ -1,4 +1,4 @@
-"""Payment CRUD; sync members.paid_through = MAX(payments.paid_through)."""
+"""Payment CRUD; sync members.paid_through and membership_type_id from payments."""
 
 from __future__ import annotations
 
@@ -21,6 +21,26 @@ class PaymentRepository:
             ), updated_at = CURRENT_TIMESTAMP WHERE id = ?
             """,
             (member_id, member_id),
+        )
+
+    def sync_member_membership_type_from_payments(self, member_id: int) -> None:
+        row = self.conn.execute(
+            """
+            SELECT membership_type_id FROM payments
+             WHERE member_id = ? AND membership_type_id IS NOT NULL
+             ORDER BY membership_year DESC, payment_date DESC, id DESC
+             LIMIT 1
+            """,
+            (member_id,),
+        ).fetchone()
+        if row is None:
+            return
+        self.conn.execute(
+            """
+            UPDATE members SET membership_type_id = ?, updated_at = CURRENT_TIMESTAMP
+             WHERE id = ?
+            """,
+            (int(row["membership_type_id"]), member_id),
         )
 
     def find_payment_meta(self, payment_id: int) -> dict | None:
@@ -58,7 +78,7 @@ class PaymentRepository:
 
     def insert_payment(self, member_id: int, data: dict[str, Any]) -> None:
         year = int(data["membership_year"])
-        paid_through = myear.paid_through_iso(year)
+        paid_through = data.get("paid_through") or myear.paid_through_iso(year)
         try:
             self.conn.execute(
                 """
@@ -77,6 +97,7 @@ class PaymentRepository:
                 ),
             )
             self.sync_member_paid_through_from_payments(member_id)
+            self.sync_member_membership_type_from_payments(member_id)
             self.conn.commit()
         except Exception:
             self.conn.rollback()
@@ -88,7 +109,7 @@ class PaymentRepository:
             return None
         member_id = meta["member_id"]
         year = int(data["membership_year"])
-        paid_through = myear.paid_through_iso(year)
+        paid_through = data.get("paid_through") or myear.paid_through_iso(year)
         try:
             self.conn.execute(
                 """
@@ -107,6 +128,7 @@ class PaymentRepository:
                 ),
             )
             self.sync_member_paid_through_from_payments(member_id)
+            self.sync_member_membership_type_from_payments(member_id)
             self.conn.commit()
             return member_id
         except Exception:
@@ -121,6 +143,7 @@ class PaymentRepository:
         try:
             self.conn.execute("DELETE FROM payments WHERE id = ?", (payment_id,))
             self.sync_member_paid_through_from_payments(member_id)
+            self.sync_member_membership_type_from_payments(member_id)
             self.conn.commit()
             return member_id
         except Exception:

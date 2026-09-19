@@ -24,6 +24,22 @@
     </form>
   </section>
 
+  <section class="reference-block">
+    <h3>Late-join extension (new members)</h3>
+    <p class="muted">When creating a member with an initial payment, join date on or after each threshold (through Dec 31 of that calendar year) extends paid-through to Dec 31 of the year after the paid membership year. New Ham uses the New Ham threshold when applicable.</p>
+    <form class="inline-form stacked-form" method="post" action="{{ url_for('/admin/join-extension') }}">
+      <label>New member extension starts (MM-DD)
+        <input name="new_member_extension_start" type="text" maxlength="5" required pattern="\d{1,2}-\d{1,2}" placeholder="08-01" value="{{ new_member_extension_start }}">
+      </label>
+      <label>New Ham extension starts (MM-DD)
+        <input name="new_ham_extension_start" type="text" maxlength="5" required pattern="\d{1,2}-\d{1,2}" placeholder="11-01" value="{{ new_ham_extension_start }}">
+      </label>
+      <div class="inline-form-actions">
+        <button type="submit">Save thresholds</button>
+      </div>
+    </form>
+  </section>
+
   <section class="reference-block admin-ref-section">
     <h3>License classes</h3>
     <div class="data-table-scroll admin-ref-table-wrap">
@@ -77,6 +93,10 @@
           <tr>
             <td>
               <div class="admin-ref-item-row">
+                {% if mt.protected %}
+                <span class="admin-ref-protected-name">{{ mt.name or '' }}</span>
+                <span class="muted">Built-in type</span>
+                {% else %}
                 <form class="admin-ref-row-form" method="post" action="{{ url_for('/admin/membership-type/' ~ mt.id ~ '/update') }}">
                   <input type="text" name="name" value="{{ mt.name or '' }}" maxlength="64" required class="admin-ref-name-input" aria-label="Membership type name">
                   <button type="submit">Save</button>
@@ -84,6 +104,7 @@
                 <form class="admin-ref-row-form admin-ref-delete-form" method="post" action="{{ url_for('/admin/membership-type/' ~ mt.id ~ '/delete') }}">
                   <button type="submit" class="btn-danger">Delete</button>
                 </form>
+                {% endif %}
               </div>
             </td>
           </tr>

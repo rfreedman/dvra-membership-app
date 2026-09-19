@@ -10,6 +10,7 @@ from dvra import view
 from dvra.admin_accounts import AdminAccountRepository
 from dvra.app_settings import AppSettingsRepository
 from dvra.context import RequestCtx
+from dvra.new_ham import NEW_HAM_TYPE_NAME
 from dvra.pages.common import admin_redirect, html_page, ref_write_error
 from dvra.pages.login import require_admin
 from dvra.reference_data import ReferenceDataRepository
@@ -24,14 +25,21 @@ def handle_admin_get(ctx: RequestCtx) -> htt.Response:
     accounts = AdminAccountRepository(ctx["conn"])
     settings = AppSettingsRepository(ctx["conn"])
     current_year = settings.get_current_membership_year()
+    new_member_extension_start = settings.get_new_member_extension_start()
+    new_ham_extension_start = settings.get_new_ham_extension_start()
+    membership_types = ref.list_membership_types()
+    for mt in membership_types:
+        mt["protected"] = (mt.get("name") or "") == NEW_HAM_TYPE_NAME
     inner = view.render(
         "admin.html",
         base=htt.app_base(),
         error=error,
         current_membership_year=current_year,
+        new_member_extension_start=new_member_extension_start,
+        new_ham_extension_start=new_ham_extension_start,
         membership_year_options=myear.option_years(current_year),
         license_classes=ref.list_license_classes(),
-        membership_types=ref.list_membership_types(),
+        membership_types=membership_types,
         admin_users=accounts.list_admin_users(),
         managers=accounts.list_managers(),
     )
@@ -46,6 +54,21 @@ def handle_admin_membership_year(ctx: RequestCtx) -> htt.Response:
     if year is None:
         return admin_redirect("Invalid membership year.")
     AppSettingsRepository(ctx["conn"]).set_current_membership_year(year)
+    return admin_redirect()
+
+
+def handle_admin_join_extension(ctx: RequestCtx) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
+    settings = AppSettingsRepository(ctx["conn"])
+    general = str(ctx["form"].get("new_member_extension_start") or "").strip()
+    nh = str(ctx["form"].get("new_ham_extension_start") or "").strip()
+    try:
+        settings.set_new_member_extension_start(general)
+        settings.set_new_ham_extension_start(nh)
+    except ValueError as e:
+        return admin_redirect(str(e))
     return admin_redirect()
 
 
@@ -113,6 +136,8 @@ def handle_mt_update(ctx: RequestCtx, id_: int) -> htt.Response:
         return admin_redirect("Invalid membership type.")
     try:
         ReferenceDataRepository(ctx["conn"]).update_membership_type(id_, name)
+    except RuntimeError as e:
+        return admin_redirect(str(e))
     except sqlite3.IntegrityError as e:
         return admin_redirect(ref_write_error(e) or str(e))
     return admin_redirect()

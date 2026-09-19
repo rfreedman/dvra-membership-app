@@ -3,6 +3,9 @@
   {% if flash_error %}
   <p class="error">{{ flash_error }}</p>
   {% endif %}
+  {% if new_ham_notice %}
+  <p class="muted">{{ new_ham_notice }}</p>
+  {% endif %}
 
   {% if rollover %}
   {% set req_y = rollover.requested_year %}

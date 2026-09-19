@@ -6,87 +6,84 @@
   <form method="post" action="{{ url_for('/members/new') }}" class="member-edit-form" id="member-create-form">
     <div class="member-form-field">
       <label for="new-last-name">Last name</label>
-      <input id="new-last-name" class="member-form-control" name="last_name" required autocomplete="family-name">
+      <input id="new-last-name" class="member-form-control" name="last_name" required autocomplete="family-name" value="{{ form_values.get('last_name', '') }}">
     </div>
     <div class="member-form-field">
       <label for="new-first-name">First name</label>
-      <input id="new-first-name" class="member-form-control" name="first_name" required autocomplete="given-name">
+      <input id="new-first-name" class="member-form-control" name="first_name" required autocomplete="given-name" value="{{ form_values.get('first_name', '') }}">
+    </div>
+    <div class="member-form-field">
+      <label for="new-license">License class</label>
+      <select id="new-license" class="member-form-control" name="license_class" required>
+        {% for item in license_classes %}
+        <option value="{{ item.id }}" data-license-name="{{ (item.name or '')|trim }}"{% if form_values.get('license_class', '') == (item.id|string) %} selected{% endif %}>{{ (item.name or '')|trim }}</option>
+        {% endfor %}
+      </select>
     </div>
     <div class="member-form-field">
       <label for="new-call">Call sign</label>
-      <input id="new-call" class="member-form-control" name="call_sign" placeholder="optional" autocomplete="off">
+      <input id="new-call" class="member-form-control" name="call_sign" autocomplete="off" value="{{ form_values.get('call_sign', '') }}"{% if call_sign_disabled %} disabled{% else %} required{% endif %}>
     </div>
     <div class="member-form-field">
       <label for="new-email">Email</label>
-      <input id="new-email" class="member-form-control" name="email" type="email" autocomplete="email">
+      <input id="new-email" class="member-form-control" name="email" type="email" required autocomplete="email" value="{{ form_values.get('email', '') }}">
     </div>
     <div class="member-form-field">
       <label for="new-phone">Phone</label>
-      <input id="new-phone" class="member-form-control" name="phone" autocomplete="tel">
+      <input id="new-phone" class="member-form-control" name="phone" required autocomplete="tel" value="{{ form_values.get('phone', '') }}">
     </div>
 
     <fieldset class="member-address-fields member-form-fieldset">
       <legend>Mailing address</legend>
       <div class="member-form-field">
         <label for="new-addr-street">Street</label>
-        <input id="new-addr-street" class="member-form-control" name="address_street" autocomplete="street-address" placeholder="optional">
+        <input id="new-addr-street" class="member-form-control" name="address_street" required autocomplete="street-address" value="{{ form_values.get('address_street', '') }}">
       </div>
       <div class="member-form-field">
         <label for="new-addr-city">City</label>
-        <input id="new-addr-city" class="member-form-control" name="address_city" autocomplete="address-level2" placeholder="optional">
+        <input id="new-addr-city" class="member-form-control" name="address_city" required autocomplete="address-level2" value="{{ form_values.get('address_city', '') }}">
       </div>
       <div class="member-form-field">
         <label for="new-addr-state">State</label>
-        <input id="new-addr-state" class="member-form-control" name="address_state" autocomplete="address-level1" maxlength="16" placeholder="e.g. NJ">
+        <input id="new-addr-state" class="member-form-control" name="address_state" required autocomplete="address-level1" maxlength="16" placeholder="e.g. NJ" value="{{ form_values.get('address_state', '') }}">
       </div>
       <div class="member-form-field">
         <label for="new-addr-zip">ZIP</label>
-        <input id="new-addr-zip" class="member-form-control" name="address_zip" autocomplete="postal-code" maxlength="16" placeholder="optional">
+        <input id="new-addr-zip" class="member-form-control" name="address_zip" required autocomplete="postal-code" maxlength="16" value="{{ form_values.get('address_zip', '') }}">
       </div>
     </fieldset>
 
     <div class="member-form-field">
-      <label for="new-license">License class</label>
-      <select id="new-license" class="member-form-control" name="license_class">
-        <option value="">—</option>
-        {% for item in license_classes %}
-        <option value="{{ item.id }}">{{ (item.name or '')|trim }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="member-form-field">
       <label for="new-membership">Membership type</label>
-      <select id="new-membership" class="member-form-control" name="membership_type">
-        <option value="">—</option>
+      <select id="new-membership" class="member-form-control" name="membership_type" required>
         {% for item in membership_types %}
-        <option value="{{ item.id }}">{{ (item.name or '')|trim }}</option>
+        <option value="{{ item.id }}"{% if (form_values.get('membership_type') or (selected_membership_type_id|string if selected_membership_type_id is not none else '')) == (item.id|string) %} selected{% endif %}>{{ (item.name or '')|trim }}</option>
         {% endfor %}
       </select>
     </div>
     <div class="member-form-field">
       <label for="new-arrl">ARRL member</label>
       <select id="new-arrl" class="member-form-control" name="arrl_member">
-        <option value="no" selected>No</option>
-        <option value="yes">Yes</option>
+        <option value="no"{% if form_values.get('arrl_member', 'no') != 'yes' %} selected{% endif %}>No</option>
+        <option value="yes"{% if form_values.get('arrl_member') == 'yes' %} selected{% endif %}>Yes</option>
       </select>
     </div>
     <div class="member-form-field">
       <label for="new-key">Key number</label>
-      <input id="new-key" class="member-form-control no-spinner" name="key_number" type="number" min="0" step="1" placeholder="optional">
+      <input id="new-key" class="member-form-control no-spinner" name="key_number" type="number" min="0" step="1" placeholder="optional" value="{{ form_values.get('key_number', '') }}">
     </div>
     <div class="member-form-field">
-      <label for="new-paid-for-year">Paid for year (optional)</label>
-      <select id="new-paid-for-year" class="member-form-control" name="paid_for_year">
-        <option value="">—</option>
+      <label for="new-paid-for-year">Paid for year</label>
+      <select id="new-paid-for-year" class="member-form-control" name="paid_for_year" required>
         {% for y in membership_year_options %}
-        <option value="{{ y }}">{{ y }}</option>
+        <option value="{{ y }}"{% if y == selected_paid_for_year %} selected{% endif %}>{{ y }}</option>
         {% endfor %}
       </select>
     </div>
 
     <div class="member-form-field member-form-field--full">
       <label for="new-notes">Notes</label>
-      <textarea id="new-notes" class="member-form-control" name="notes" rows="4" placeholder="Optional"></textarea>
+      <textarea id="new-notes" class="member-form-control" name="notes" rows="4" placeholder="Optional">{{ form_values.get('notes', '') }}</textarea>
     </div>
 
     <div class="member-form-actions-row member-form-actions-row--create">

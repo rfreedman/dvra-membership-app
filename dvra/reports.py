@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+from dvra import join_extension
 from dvra.sort_toggle import next_sort_choice, normalize_sort
 
 KEYHOLDERS_SORT_FIELDS = ["name", "call_sign", "key_number", "email"]
@@ -72,13 +73,12 @@ class ReportsRepository:
             """
             SELECT m.last_name AS last_name, m.first_name AS first_name, m.call_sign AS call_sign
             FROM members m
-            WHERE EXISTS (
-                SELECT 1 FROM payments p
-                WHERE p.member_id = m.id AND p.membership_year = ?
-            )
+            WHERE """
+            + join_extension.sql_exists_payment_current_for_year("p")
+            + """
             ORDER BY m.last_name ASC, m.first_name ASC
             """,
-            (membership_year,),
+            (membership_year, membership_year),
         ).fetchall()
         return self._map_roster(rows)
 
@@ -87,13 +87,12 @@ class ReportsRepository:
             """
             SELECT m.call_sign AS call_sign, m.last_name AS last_name, m.first_name AS first_name
             FROM members m
-            WHERE EXISTS (
-                SELECT 1 FROM payments p
-                WHERE p.member_id = m.id AND p.membership_year = ?
-            )
+            WHERE """
+            + join_extension.sql_exists_payment_current_for_year("p")
+            + """
             ORDER BY (m.call_sign IS NULL), m.call_sign ASC, m.last_name ASC, m.first_name ASC
             """,
-            (membership_year,),
+            (membership_year, membership_year),
         ).fetchall()
         return self._map_roster(rows)
 

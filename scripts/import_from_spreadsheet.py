@@ -716,7 +716,7 @@ def main() -> int:
         print(
             "Warning: no membership-type values were read from the spreadsheet (legacy column G empty on every row). "
             "For the older eight-column report, Excel often omits blank cells — use "
-            '--default-membership-type "Regular" if needed. The "dvra_membership.xlsx" roster layout uses column B.',
+            '--default-membership-type "Individual" if needed. The "dvra_membership.xlsx" roster layout uses column B.',
             file=sys.stderr,
         )
     return 0

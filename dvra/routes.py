@@ -80,6 +80,8 @@ def _match_authed(method: str, path: str, ctx: RequestCtx) -> htt.Response | Non
         return admin_pages.handle_admin_get(ctx)
     if method == "POST" and path == "/admin/membership-year":
         return admin_pages.handle_admin_membership_year(ctx)
+    if method == "POST" and path == "/admin/join-extension":
+        return admin_pages.handle_admin_join_extension(ctx)
     if method == "POST" and path == "/admin/license/create":
         return admin_pages.handle_license_create(ctx)
     m = _m(path, r"/admin/license/(\d+)/update")

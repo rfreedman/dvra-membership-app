@@ -25,7 +25,7 @@ def test_membership_type_delete_blocked_by_current_year_payment():
     conn = memory_db()
     conn.execute("INSERT INTO membership_types (name) VALUES ('Annual')")
     conn.commit()
-    tid = int(conn.execute("SELECT id FROM membership_types").fetchone()[0])
+    tid = int(conn.execute("SELECT id FROM membership_types WHERE name = 'Annual'").fetchone()[0])
     conn.execute(
         """
         INSERT INTO members (last_name, first_name, arrl_member, created_at, updated_at)

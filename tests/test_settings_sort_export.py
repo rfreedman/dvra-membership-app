@@ -62,7 +62,7 @@ def test_member_list_uses_reference_membership_types():
     ref.create_membership_type("Family")
     listed = MemberListRepository(conn).list_membership_types()
     assert listed == ref.list_membership_types()
-    assert [row["name"] for row in listed] == ["Family"]
+    assert [row["name"] for row in listed] == ["Family", "New Ham"]
 
 
 def test_username_unique_across_admin_and_manager_tables():

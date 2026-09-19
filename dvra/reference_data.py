@@ -4,6 +4,20 @@ from __future__ import annotations
 
 import sqlite3
 
+from dvra.new_ham import CANNOT_DELETE_NEW_HAM, CANNOT_RENAME_NEW_HAM, is_protected_type_id
+
+DEFAULT_MEMBERSHIP_TYPE_NAME = "Individual"
+
+
+def find_default_membership_type_id(conn: sqlite3.Connection) -> int | None:
+    row = conn.execute(
+        "SELECT id FROM membership_types WHERE name = ? LIMIT 1",
+        (DEFAULT_MEMBERSHIP_TYPE_NAME,),
+    ).fetchone()
+    if row is None:
+        return None
+    return int(row[0])
+
 
 class ReferenceDataRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
@@ -42,6 +56,8 @@ class ReferenceDataRepository:
         self.conn.commit()
 
     def update_membership_type(self, id_: int, name: str) -> None:
+        if is_protected_type_id(self.conn, id_):
+            raise RuntimeError(CANNOT_RENAME_NEW_HAM)
         self.conn.execute("UPDATE membership_types SET name = ? WHERE id = ?", (name.strip(), id_))
         self.conn.commit()
 
@@ -62,6 +78,8 @@ class ReferenceDataRepository:
         return row is not None
 
     def delete_membership_type_or_fail(self, id_: int, current_year: int) -> None:
+        if is_protected_type_id(self.conn, id_):
+            raise RuntimeError(CANNOT_DELETE_NEW_HAM)
         if self.membership_type_blocked_by_payments(id_, current_year):
             raise RuntimeError(
                 "Cannot delete membership type referenced by payments in the current or future membership years."

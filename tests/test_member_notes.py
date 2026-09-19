@@ -4,10 +4,11 @@ import json
 import os
 import sqlite3
 from pathlib import Path
+from urllib.parse import urlencode
 
 from dvra.app import handle_request
 from dvra.schema import SCHEMA_USER_VERSION, ensure, sqlite_table_has_column
-from tests.conftest import insert_member, memory_db
+from tests.conftest import ensure_member_form_reference_data, insert_member, member_create_form, memory_db
 
 
 def _run(
@@ -151,7 +152,16 @@ def test_member_detail_edit_saves_notes(tmp_path: Path):
     dsn = "sqlite:" + str(db)
     cookie = _login_admin(dsn)
     conn = sqlite3.connect(db)
+    ensure_member_form_reference_data(conn)
     mid = insert_member(conn, "Detail", "Notes")
+    edit_body = urlencode(
+        member_create_form(
+            conn,
+            last_name="Detail",
+            first_name="Notes",
+            notes="Saved on detail",
+        )
+    )
     conn.close()
 
     status, headers, body = _run("GET", f"/members/{mid}/view", cookie=cookie, dsn=dsn)
@@ -162,12 +172,7 @@ def test_member_detail_edit_saves_notes(tmp_path: Path):
     status, headers, _ = _run(
         "POST",
         f"/members/{mid}/edit",
-        body=(
-            "last_name=Detail&first_name=Notes&call_sign=&email=&phone="
-            "&address_street=&address_city=&address_state=&address_zip="
-            "&license_class=&membership_type=&arrl_member=no&key_number="
-            "&notes=Saved+on+detail"
-        ),
+        body=edit_body,
         cookie=cookie,
         dsn=dsn,
     )
