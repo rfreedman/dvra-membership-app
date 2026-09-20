@@ -1,0 +1,152 @@
+<script>
+(function () {
+  const EMPTY_LABEL = "—";
+
+  function loadOptions() {
+    const el = document.getElementById("covered-by-options");
+    if (!el) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(el.textContent || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      return [];
+    }
+  }
+
+  function cellText(value) {
+    const text = String(value || "").trim();
+    return text === "" ? EMPTY_LABEL : text;
+  }
+
+  function matches(item, query) {
+    if (!query) {
+      return true;
+    }
+    const q = query.toLowerCase();
+    const last = String(item.last_name || "").toLowerCase();
+    const first = String(item.first_name || "").toLowerCase();
+    const call = String(item.call_sign || "").toLowerCase();
+    return last.indexOf(q) !== -1 || first.indexOf(q) !== -1 || call.indexOf(q) !== -1;
+  }
+
+  function notifyHiddenChanged(hidden) {
+    hidden.dispatchEvent(new Event("input", { bubbles: true }));
+    hidden.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const hidden = document.getElementById("covered-by-id");
+    const display = document.getElementById("covered-by-display");
+    const openBtn = document.getElementById("covered-by-open");
+    const clearBtn = document.getElementById("covered-by-clear");
+    const dialog = document.getElementById("covered-by-dialog");
+    const search = document.getElementById("covered-by-search");
+    const tbody = document.getElementById("covered-by-results");
+    const empty = document.getElementById("covered-by-empty");
+    const cancelBtn = document.getElementById("covered-by-cancel");
+    if (!hidden || !display || !openBtn || !dialog || !search || !tbody) {
+      return;
+    }
+    if (typeof dialog.showModal !== "function") {
+      return;
+    }
+
+    const options = loadOptions();
+
+    function findOption(id) {
+      const key = String(id || "");
+      if (key === "") {
+        return null;
+      }
+      for (let i = 0; i < options.length; i++) {
+        if (String(options[i].id) === key) {
+          return options[i];
+        }
+      }
+      return null;
+    }
+
+    function setSelection(id) {
+      const item = findOption(id);
+      hidden.value = item ? String(item.id) : "";
+      display.value = item ? item.label : EMPTY_LABEL;
+      notifyHiddenChanged(hidden);
+    }
+
+    function renderRows() {
+      const query = String(search.value || "").trim();
+      const selectedId = String(hidden.value || "");
+      const rows = options.filter(function (item) {
+        return matches(item, query);
+      });
+      tbody.textContent = "";
+      if (empty) {
+        empty.hidden = rows.length > 0;
+      }
+      rows.forEach(function (item) {
+        const tr = document.createElement("tr");
+        tr.setAttribute("role", "button");
+        tr.tabIndex = 0;
+        if (String(item.id) === selectedId) {
+          tr.className = "is-selected";
+        }
+        const lastTd = document.createElement("td");
+        lastTd.textContent = cellText(item.last_name);
+        const firstTd = document.createElement("td");
+        firstTd.textContent = cellText(item.first_name);
+        const callTd = document.createElement("td");
+        callTd.textContent = cellText(item.call_sign);
+        tr.appendChild(lastTd);
+        tr.appendChild(firstTd);
+        tr.appendChild(callTd);
+        function choose() {
+          setSelection(item.id);
+          dialog.close();
+        }
+        tr.addEventListener("click", choose);
+        tr.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            choose();
+          }
+        });
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openDialog() {
+      search.value = "";
+      renderRows();
+      dialog.showModal();
+      search.focus();
+    }
+
+    openBtn.addEventListener("click", openDialog);
+    display.addEventListener("click", openDialog);
+    display.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openDialog();
+      }
+    });
+    search.addEventListener("input", renderRows);
+    search.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+      }
+    });
+    if (clearBtn) {
+      clearBtn.addEventListener("click", function () {
+        setSelection("");
+      });
+    }
+    if (cancelBtn) {
+      cancelBtn.addEventListener("click", function () {
+        dialog.close();
+      });
+    }
+  });
+})();
+</script>

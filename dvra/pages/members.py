@@ -190,7 +190,7 @@ def handle_members_export(ctx: RequestCtx, fmt: str) -> htt.Response:
 
 def handle_member_new_get(ctx: RequestCtx) -> htt.Response:
     inner = view.render("member_new.html", error=None, **_member_new_template_ctx(ctx))
-    scripts = view.render("member_license_call_sign_scripts.html")
+    scripts = view.render("member_new_scripts.html")
     return html_page(inner, "New member", ctx, active_nav="members", extra_scripts=scripts)
 
 
@@ -202,7 +202,7 @@ def handle_member_new_post(ctx: RequestCtx) -> htt.Response:
     members_repo = MemberRepository(ctx["conn"])
     payments_repo = PaymentRepository(ctx["conn"])
     row = normalizer.member_create_from_form(body, paid_through)
-    scripts = view.render("member_license_call_sign_scripts.html")
+    scripts = view.render("member_new_scripts.html")
 
     def fail(msg: str, status: int) -> htt.Response:
         inner = view.render("member_new.html", error=msg, **ref)

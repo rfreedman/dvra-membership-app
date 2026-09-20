@@ -69,15 +69,9 @@
         {% endfor %}
       </select>
     </div>
-    <div class="member-form-field">
-      <label for="new-covered-by">Covered by family member</label>
-      <select id="new-covered-by" class="member-form-control" name="family_primary_member_id">
-        <option value="">—</option>
-        {% for item in family_primary_options %}
-        <option value="{{ item.id }}"{% if form_values.get('family_primary_member_id', '') == (item.id|string) %} selected{% endif %}>{{ item.label }}</option>
-        {% endfor %}
-      </select>
-    </div>
+    {% set covered_by_value = form_values.get('family_primary_member_id', '') %}
+    {% set covered_by_label = '' %}
+    {% include "_covered_by_field.html" %}
     <div class="member-form-field">
       <label for="new-arrl">ARRL member</label>
       <select id="new-arrl" class="member-form-control" name="arrl_member">
@@ -114,4 +108,5 @@
       <button type="submit" class="member-form-submit">Create member</button>
     </div>
   </form>
+  {% include "_covered_by_dialog.html" %}
 </div>

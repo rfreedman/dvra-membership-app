@@ -6,7 +6,9 @@ import sqlite3
 from typing import Any
 
 from dvra import family
+from dvra import join_extension
 from dvra import normalizer
+from dvra.app_settings import AppSettingsRepository
 from dvra.reference_data import ReferenceDataRepository
 
 
@@ -114,30 +116,41 @@ class MemberRepository:
     def list_family_primary_options(
         self, exclude_member_id: int | None, include_primary_id: int | None = None
     ) -> list[dict]:
-        living = "COALESCE(deceased, 0) = 0"
-        if include_primary_id is not None:
-            living = f"({living} OR id = ?)"
+        year = AppSettingsRepository(self.conn).get_current_membership_year()
+        eligible = (
+            join_extension.sql_exists_payment_current_for_year("fam_pay")
+            + " AND "
+            + family.sql_family_primary_type_allowed("m")
+        )
         params: list[Any] = []
         if include_primary_id is not None:
+            where_eligible = f"(m.id = ? OR ({eligible}))"
             params.append(include_primary_id)
+        else:
+            where_eligible = eligible
+        params.extend([year, year])
+        params.extend(family.FAMILY_PRIMARY_EXCLUDED_TYPE_NAMES)
         exclude_sql = ""
         if exclude_member_id is not None:
-            exclude_sql = "AND id != ?"
+            exclude_sql = "AND m.id != ?"
             params.append(exclude_member_id)
         rows = self.conn.execute(
             f"""
-            SELECT id, last_name, first_name, call_sign
-            FROM members
-            WHERE family_primary_member_id IS NULL
-              AND {living}
+            SELECT m.id, m.last_name, m.first_name, m.call_sign
+            FROM members m
+            WHERE m.family_primary_member_id IS NULL
+              AND {where_eligible}
               {exclude_sql}
-            ORDER BY last_name ASC, first_name ASC, id ASC
+            ORDER BY m.last_name ASC, m.first_name ASC, m.id ASC
             """,
             params,
         ).fetchall()
         return [
             {
                 "id": int(r["id"]),
+                "last_name": str(r["last_name"] or ""),
+                "first_name": str(r["first_name"] or ""),
+                "call_sign": str(r["call_sign"] or "").strip().upper(),
                 "label": family.format_member_label(r["last_name"], r["first_name"], r["call_sign"]),
             }
             for r in rows

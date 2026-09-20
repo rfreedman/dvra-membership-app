@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pytest
 
+from dvra.app_settings import AppSettingsRepository
+from dvra import view
 from dvra.family import (
     apply_roster_family_links,
     delete_secondary_payments_covered_by_primary,
@@ -10,6 +12,7 @@ from dvra.family import (
 from dvra.member_list import MemberListRepository
 from dvra.members import MemberHasFamilySecondaries, MemberRepository
 from dvra.payments import PaymentRepository
+from dvra.reference_data import ReferenceDataRepository
 from dvra.reports import ReportsRepository
 
 from tests.conftest import insert_member, memory_db
@@ -244,3 +247,119 @@ def test_cannot_delete_primary_with_secondaries():
         MemberRepository(conn).delete_member_by_id(primary)
     assert MemberRepository(conn).find_member_by_id(primary) is not None
     assert MemberRepository(conn).delete_member_by_id(secondary) is True
+
+
+def _type_id(conn, name: str) -> int:
+    ref = ReferenceDataRepository(conn)
+    row = conn.execute("SELECT id FROM membership_types WHERE name = ? LIMIT 1", (name,)).fetchone()
+    if row is None:
+        ref.create_membership_type(name)
+        row = conn.execute("SELECT id FROM membership_types WHERE name = ? LIMIT 1", (name,)).fetchone()
+    return int(row["id"])
+
+
+def _set_type(conn, member_id: int, type_id: int) -> None:
+    conn.execute("UPDATE members SET membership_type_id = ? WHERE id = ?", (type_id, member_id))
+    conn.commit()
+
+
+def test_family_primary_options_only_current_eligible_members():
+    conn = memory_db()
+    AppSettingsRepository(conn).set_current_membership_year(2026)
+    individual = _type_id(conn, "Individual")
+    life = _type_id(conn, "Life")
+    emeritus = _type_id(conn, "Emeritus")
+    new_ham = _type_id(conn, "New Ham")
+    student = _type_id(conn, "Student")
+
+    self_id = insert_member(conn, "Able", "Ann")
+    current = insert_member(conn, "Baker", "Bob")
+    unpaid = insert_member(conn, "Clark", "Cara")
+    life_id = insert_member(conn, "Davis", "Dan")
+    emeritus_id = insert_member(conn, "Evans", "Eve")
+    new_ham_id = insert_member(conn, "Foster", "Fay")
+    student_id = insert_member(conn, "Green", "Gus")
+    deceased = insert_member(conn, "Hall", "Hal")
+    lapsed_selected = insert_member(conn, "Inman", "Ivy")
+    secondary = insert_member(conn, "Baker", "Jill")
+
+    for mid, tid in (
+        (self_id, individual),
+        (current, individual),
+        (unpaid, individual),
+        (life_id, life),
+        (emeritus_id, emeritus),
+        (new_ham_id, new_ham),
+        (student_id, student),
+        (deceased, individual),
+        (lapsed_selected, individual),
+        (secondary, individual),
+    ):
+        _set_type(conn, mid, tid)
+
+    for mid in (self_id, current, life_id, emeritus_id, new_ham_id, student_id, deceased):
+        _pay(conn, mid, 2026)
+    _pay(conn, lapsed_selected, 2025)
+    _link(conn, secondary, current)
+    conn.execute("UPDATE members SET deceased = 1 WHERE id = ?", (deceased,))
+    conn.commit()
+
+    ids = {item["id"] for item in MemberRepository(conn).list_family_primary_options(self_id)}
+    assert current in ids
+    bob = next(item for item in MemberRepository(conn).list_family_primary_options(self_id) if item["id"] == current)
+    assert bob["last_name"] == "Baker"
+    assert bob["first_name"] == "Bob"
+    assert "call_sign" in bob
+    assert "label" in bob
+    assert self_id not in ids
+    assert unpaid not in ids
+    assert life_id not in ids
+    assert emeritus_id not in ids
+    assert new_ham_id not in ids
+    assert student_id not in ids
+    assert deceased not in ids
+    assert lapsed_selected not in ids
+    assert secondary not in ids
+
+    included = {
+        item["id"]
+        for item in MemberRepository(conn).list_family_primary_options(
+            self_id, include_primary_id=lapsed_selected
+        )
+    }
+    assert lapsed_selected in included
+    assert current in included
+    assert life_id not in included
+
+
+def test_covered_by_picker_markup_uses_search_dialog():
+    field = view.render(
+        "_covered_by_field.html",
+        covered_by_value=2,
+        covered_by_label="Baker, Bob (K2BOB)",
+        family_primary_options=[],
+    )
+    assert 'name="family_primary_member_id"' in field
+    assert 'id="covered-by-id"' in field
+    assert 'id="covered-by-open"' in field
+    assert 'id="covered-by-search"' not in field
+    assert "<select" not in field
+    dialog = view.render(
+        "_covered_by_dialog.html",
+        family_primary_options=[
+            {
+                "id": 2,
+                "last_name": "Baker",
+                "first_name": "Bob",
+                "call_sign": "K2BOB",
+                "label": "Baker, Bob (K2BOB)",
+            }
+        ],
+    )
+    assert 'id="covered-by-dialog"' in dialog
+    assert 'id="covered-by-search"' in dialog
+    assert "Last name" in dialog
+    assert "First name" in dialog
+    assert "Call sign" in dialog
+    assert "K2BOB" in dialog
+    assert "covered-by-results" in dialog

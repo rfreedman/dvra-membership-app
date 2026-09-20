@@ -78,15 +78,9 @@
         {% endfor %}
       </select>
     </div>
-    <div class="member-form-field">
-      <label for="edit-covered-by">Covered by family member</label>
-      <select id="edit-covered-by" class="member-form-control" name="family_primary_member_id">
-        <option value="">—</option>
-        {% for item in family_primary_options %}
-        <option value="{{ item.id }}"{% if member.family_primary_member_id == item.id %} selected{% endif %}>{{ item.label }}</option>
-        {% endfor %}
-      </select>
-    </div>
+    {% set covered_by_value = member.family_primary_member_id if member.family_primary_member_id is not none else '' %}
+    {% set covered_by_label = member.family_primary_label or '' %}
+    {% include "_covered_by_field.html" %}
     {% if member.covered_members %}
     <div class="member-form-field member-form-field--readonly" aria-live="polite">
       <span class="member-form-field-label">Covers family members</span>
@@ -133,4 +127,5 @@
       <button type="submit" class="member-form-delete-submit">Delete member</button>
     </form>
   </div>
+  {% include "_covered_by_dialog.html" %}
 </div>

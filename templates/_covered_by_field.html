@@ -1,0 +1,21 @@
+{% set ns = namespace(value=covered_by_value, label=covered_by_label or '') %}
+{% if ns.value in (none, undefined) %}
+  {% set ns.value = '' %}
+{% endif %}
+{% if not ns.label and ns.value %}
+  {% for item in family_primary_options %}
+    {% if item.id|string == ns.value|string %}
+      {% set ns.label = item.label %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+<div class="member-form-field">
+  <span class="member-form-field-label" id="covered-by-label">Covered by family member</span>
+  <input type="hidden" name="family_primary_member_id" id="covered-by-id" value="{{ ns.value }}">
+  <div class="covered-by-picker-row">
+    <input id="covered-by-display" class="member-form-control" type="text" readonly
+           value="{{ ns.label or '—' }}" aria-labelledby="covered-by-label" tabindex="0">
+    <button type="button" class="covered-by-choose" id="covered-by-open">Choose</button>
+    <button type="button" class="filter-clear covered-by-clear" id="covered-by-clear">Clear</button>
+  </div>
+</div>

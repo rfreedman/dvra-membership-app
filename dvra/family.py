@@ -85,6 +85,24 @@ def covered_by_payment_note(primary_label: str) -> str:
     return f"Covered by {primary_label}"
 
 
+# Membership types that cannot cover another member (complimentary or non-dues).
+FAMILY_PRIMARY_EXCLUDED_TYPE_NAMES = ("life", "emeritus", "new ham", "student")
+
+
+def sql_family_primary_type_allowed(member_alias: str = "m") -> str:
+    """SQL fragment: member's type is not Life, Emeritus, New Ham, or Student.
+
+    Binds FAMILY_PRIMARY_EXCLUDED_TYPE_NAMES in that order.
+    """
+    placeholders = ",".join("?" * len(FAMILY_PRIMARY_EXCLUDED_TYPE_NAMES))
+    return f"""(
+        {member_alias}.membership_type_id IS NULL
+        OR {member_alias}.membership_type_id NOT IN (
+            SELECT id FROM membership_types WHERE lower(name) IN ({placeholders})
+        )
+    )"""
+
+
 def format_member_label(last_name: str, first_name: str, call_sign: str | None) -> str:
     name = f"{(last_name or '').strip()}, {(first_name or '').strip()}".strip(", ").strip()
     call = (call_sign or "").strip().upper()

@@ -1,0 +1,27 @@
+<dialog id="covered-by-dialog" class="covered-by-dialog" aria-labelledby="covered-by-dialog-title">
+  <form method="dialog" class="dialog-close-corner-form">
+    <button type="submit" class="dialog-close-corner-btn" aria-label="Cancel and close">×</button>
+  </form>
+  <h3 id="covered-by-dialog-title">Choose covering member</h3>
+  <label class="full-width" for="covered-by-search">Search
+    <input id="covered-by-search" type="search" autocomplete="off"
+           placeholder="First name, last name, or call sign">
+  </label>
+  <div class="data-table-scroll covered-by-results-scroll">
+    <table class="data-table" aria-label="Matching members">
+      <thead>
+        <tr>
+          <th>Last name</th>
+          <th>First name</th>
+          <th>Call sign</th>
+        </tr>
+      </thead>
+      <tbody id="covered-by-results"></tbody>
+    </table>
+  </div>
+  <p id="covered-by-empty" class="muted" hidden>No matching members.</p>
+  <div class="form-actions-row">
+    <button type="button" id="covered-by-cancel">Cancel</button>
+  </div>
+</dialog>
+<script type="application/json" id="covered-by-options">{{ family_primary_options|tojson }}</script>
