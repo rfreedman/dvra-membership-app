@@ -15,7 +15,7 @@ from dvra.new_ham import NEW_HAM_TYPE_NAME
 from dvra.paths import SCHEMA_PATH
 
 # Bump when schema.sql or migrate_* logic changes so ensure() re-runs.
-SCHEMA_USER_VERSION = 11
+SCHEMA_USER_VERSION = 12
 
 
 def ensure(conn: sqlite3.Connection) -> None:
@@ -38,6 +38,7 @@ def ensure(conn: sqlite3.Connection) -> None:
     migrate_member_family_primary(conn)
     migrate_roster_family_links_and_new_ham(conn)
     migrate_delete_secondary_payments_covered_by_primary(conn)
+    migrate_member_deceased(conn)
     conn.execute(f"PRAGMA user_version = {SCHEMA_USER_VERSION}")
     conn.commit()
 
@@ -137,6 +138,11 @@ def migrate_remove_regular_membership_type(conn: sqlite3.Connection) -> None:
             (individual_id, regular_id),
         )
     conn.execute("DELETE FROM membership_types WHERE id = ?", (regular_id,))
+
+
+def migrate_member_deceased(conn: sqlite3.Connection) -> None:
+    if not sqlite_table_has_column(conn, "members", "deceased"):
+        conn.execute("ALTER TABLE members ADD COLUMN deceased INTEGER NOT NULL DEFAULT 0")
 
 
 def migrate_member_family_primary(conn: sqlite3.Connection) -> None:

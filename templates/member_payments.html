@@ -35,10 +35,16 @@
   <div class="member-page-header">
     <h2>Payments — {{ member.last_name }}, {{ member.first_name }}{% if member.call_sign %} ({{ member.call_sign }}){% endif %}</h2>
     <div class="member-page-actions">
+      {% if not member.deceased %}
       <button id="open-add-payment" type="button" class="btn-primary">Add Payment</button>
+      {% endif %}
     </div>
   </div>
+  {% if member.deceased %}
+  <p class="muted">This member is marked SK and cannot accept new payments.</p>
+  {% endif %}
 
+  {% if not member.deceased %}
   <dialog id="add-payment-dialog">
     <form method="dialog" class="dialog-close-corner-form">
       <button type="submit" class="dialog-close-corner-btn" aria-label="Cancel and close">×</button>
@@ -69,6 +75,7 @@
       </div>
     </form>
   </dialog>
+  {% endif %}
 
   {% if payments %}
   <div class="data-table-scroll">

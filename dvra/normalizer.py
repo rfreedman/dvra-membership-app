@@ -84,6 +84,7 @@ def member_create_from_form(body: dict[str, Any], paid_through: str | None) -> d
         "membership_type_id": int(mt) if mt.isdigit() else None,
         "family_primary_member_id": family.parse_family_primary_member_id(body.get("family_primary_member_id")),
         "arrl_member": _form_str(body, "arrl_member") == "yes",
+        "deceased": _form_str(body, "deceased") == "yes",
         "key_number": int(key_raw) if key_raw.isdigit() else None,
         "paid_through": paid_through,
         "notes": strip_optional(_form_str(body, "notes")),

@@ -55,7 +55,9 @@ def extended_paid_through_iso(membership_year: int) -> str:
     return myear.paid_through_iso(membership_year + 1)
 
 
-def sql_exists_payment_current_for_year(payment_alias: str = "pay") -> str:
+def sql_exists_payment_current_for_year(
+    payment_alias: str = "pay", *, include_deceased: bool = False
+) -> str:
     """SQL fragment: member m is current for membership year bound as two ? params (same Y).
 
     Own payment or a linked family primary's matching payment.
@@ -65,7 +67,10 @@ def sql_exists_payment_current_for_year(payment_alias: str = "pay") -> str:
         {a}.membership_year <= ?
         AND date({a}.paid_through) >= date(printf('%04d-12-31', ?))
     """
-    return family.sql_exists_own_or_family_payment(a, predicate)
+    exists = family.sql_exists_own_or_family_payment(a, predicate)
+    if include_deceased:
+        return exists
+    return "COALESCE(m.deceased, 0) = 0 AND " + exists
 
 
 def _extension_note(

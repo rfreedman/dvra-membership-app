@@ -9,6 +9,10 @@ from typing import Any
 from dvra import membership_year as myear
 
 
+class MemberIsDeceased(Exception):
+    pass
+
+
 class PaymentRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self.conn = conn
@@ -76,7 +80,13 @@ class PaymentRepository:
             y += 1
         raise RuntimeError("No free membership year available.")
 
+    def _member_is_deceased(self, member_id: int) -> bool:
+        row = self.conn.execute("SELECT deceased FROM members WHERE id = ? LIMIT 1", (member_id,)).fetchone()
+        return row is not None and bool(row["deceased"])
+
     def insert_payment(self, member_id: int, data: dict[str, Any]) -> None:
+        if self._member_is_deceased(member_id):
+            raise MemberIsDeceased("This member is marked SK and cannot accept new payments.")
         year = int(data["membership_year"])
         paid_through = data.get("paid_through") or myear.paid_through_iso(year)
         try:

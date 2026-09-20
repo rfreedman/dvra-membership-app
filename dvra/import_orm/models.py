@@ -75,6 +75,7 @@ class Member(Base):
     membership_type_id: Mapped[Optional[int]] = mapped_column(ForeignKey("membership_types.id"), nullable=True)
     family_primary_member_id: Mapped[Optional[int]] = mapped_column(ForeignKey("members.id"), nullable=True)
     arrl_member: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    deceased: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     key_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     paid_through: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

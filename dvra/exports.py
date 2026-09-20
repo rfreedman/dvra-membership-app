@@ -103,6 +103,7 @@ MEMBER_KEYS = [
     "membership_type",
     "covered_by",
     "arrl_member",
+    "deceased",
     "key_number",
     "date_paid",
     "paid_through",
@@ -123,6 +124,7 @@ MEMBER_HEADERS = [
     "Membership type",
     "Covered by",
     "ARRL",
+    "SK",
     "Key #",
     "Date paid",
     "Paid through",
@@ -130,7 +132,7 @@ MEMBER_HEADERS = [
 
 
 def _member_cell(key: str, value: Any) -> str:
-    if key == "arrl_member":
+    if key in ("arrl_member", "deceased"):
         if isinstance(value, bool):
             return "yes" if value else "no"
         s = str(value).strip().lower()

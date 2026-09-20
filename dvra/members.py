@@ -34,7 +34,7 @@ class MemberRepository:
             SELECT m.id, m.last_name, m.first_name, m.call_sign, m.email, m.nickname, m.qrz_email,
                    m.phone, m.address_street, m.address_city, m.address_state, m.address_zip,
                    m.license_class_id, m.membership_type_id, m.family_primary_member_id,
-                   m.arrl_member, m.key_number, m.paid_through, m.notes,
+                   m.arrl_member, m.deceased, m.key_number, m.paid_through, m.notes,
                    {family.EFFECTIVE_PAID_THROUGH_SQL} AS effective_paid_through
             FROM members m
             WHERE m.id = ?
@@ -82,6 +82,7 @@ class MemberRepository:
                 int(row["family_primary_member_id"]) if row["family_primary_member_id"] is not None else None
             ),
             "arrl_member": bool(row["arrl_member"]),
+            "deceased": bool(row["deceased"]),
             "key_number": int(row["key_number"]) if row["key_number"] is not None else None,
             "paid_through": s("paid_through"),
             "notes": s("notes"),
@@ -110,27 +111,30 @@ class MemberRepository:
         ).fetchall()
         return [family.format_member_label(r["last_name"], r["first_name"], r["call_sign"]) for r in rows]
 
-    def list_family_primary_options(self, exclude_member_id: int | None) -> list[dict]:
+    def list_family_primary_options(
+        self, exclude_member_id: int | None, include_primary_id: int | None = None
+    ) -> list[dict]:
+        living = "COALESCE(deceased, 0) = 0"
+        if include_primary_id is not None:
+            living = f"({living} OR id = ?)"
+        params: list[Any] = []
+        if include_primary_id is not None:
+            params.append(include_primary_id)
+        exclude_sql = ""
         if exclude_member_id is not None:
-            rows = self.conn.execute(
-                """
-                SELECT id, last_name, first_name, call_sign
-                FROM members
-                WHERE family_primary_member_id IS NULL
-                  AND id != ?
-                ORDER BY last_name ASC, first_name ASC, id ASC
-                """,
-                (exclude_member_id,),
-            ).fetchall()
-        else:
-            rows = self.conn.execute(
-                """
-                SELECT id, last_name, first_name, call_sign
-                FROM members
-                WHERE family_primary_member_id IS NULL
-                ORDER BY last_name ASC, first_name ASC, id ASC
-                """
-            ).fetchall()
+            exclude_sql = "AND id != ?"
+            params.append(exclude_member_id)
+        rows = self.conn.execute(
+            f"""
+            SELECT id, last_name, first_name, call_sign
+            FROM members
+            WHERE family_primary_member_id IS NULL
+              AND {living}
+              {exclude_sql}
+            ORDER BY last_name ASC, first_name ASC, id ASC
+            """,
+            params,
+        ).fetchall()
         return [
             {
                 "id": int(r["id"]),
@@ -205,9 +209,9 @@ class MemberRepository:
                 last_name, first_name, call_sign, email, nickname, qrz_email, phone,
                 address_street, address_city, address_state, address_zip,
                 license_class_id, membership_type_id, family_primary_member_id,
-                arrl_member, key_number, paid_through,
+                arrl_member, deceased, key_number, paid_through,
                 notes, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """,
             (
                 data["last_name"],
@@ -225,6 +229,7 @@ class MemberRepository:
                 data["membership_type_id"],
                 data.get("family_primary_member_id"),
                 1 if data["arrl_member"] else 0,
+                1 if data.get("deceased") else 0,
                 data["key_number"],
                 data["paid_through"],
                 data.get("notes"),
@@ -243,7 +248,7 @@ class MemberRepository:
                 last_name = ?, first_name = ?, call_sign = ?, email = ?, nickname = ?, qrz_email = ?, phone = ?,
                 address_street = ?, address_city = ?, address_state = ?, address_zip = ?,
                 license_class_id = ?, membership_type_id = ?, family_primary_member_id = ?,
-                arrl_member = ?, key_number = ?,
+                arrl_member = ?, deceased = ?, key_number = ?,
                 notes = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
@@ -264,6 +269,7 @@ class MemberRepository:
                 data["membership_type_id"],
                 data.get("family_primary_member_id"),
                 1 if data["arrl_member"] else 0,
+                1 if data.get("deceased") else 0,
                 data["key_number"],
                 data.get("notes"),
                 id_,

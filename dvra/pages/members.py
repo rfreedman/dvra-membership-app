@@ -22,7 +22,7 @@ from dvra.context import RequestCtx
 from dvra.member_list import MemberListRepository
 from dvra.members import DuplicateMemberKeyNumber, MemberHasFamilySecondaries, MemberRepository
 from dvra.pages.common import download_export, html_page, member_not_found
-from dvra.payments import PaymentRepository
+from dvra.payments import MemberIsDeceased, PaymentRepository
 from dvra.reference_data import find_default_membership_type_id
 
 
@@ -37,12 +37,18 @@ def _new_member_join_date() -> date:
     return date.today()
 
 
-def _member_ref(ctx: RequestCtx, exclude_member_id: int | None = None) -> dict[str, Any]:
+def _member_ref(
+    ctx: RequestCtx,
+    exclude_member_id: int | None = None,
+    include_primary_id: int | None = None,
+) -> dict[str, Any]:
     repo = MemberRepository(ctx["conn"])
     return {
         "license_classes": repo.list_license_classes(),
         "membership_types": repo.list_membership_types(),
-        "family_primary_options": repo.list_family_primary_options(exclude_member_id),
+        "family_primary_options": repo.list_family_primary_options(
+            exclude_member_id, include_primary_id
+        ),
         "new_ham_type_id": new_ham.find_type_id(ctx["conn"]),
         "new_ham_convert_confirm": new_ham.NEW_HAM_CONVERT_CONFIRM,
         "unlicensed_license_class_id": find_unlicensed_class_id(ctx["conn"]),
@@ -51,7 +57,7 @@ def _member_ref(ctx: RequestCtx, exclude_member_id: int | None = None) -> dict[s
 
 def _member_detail_template_ctx(ctx: RequestCtx, member: dict[str, Any]) -> dict[str, Any]:
     return {
-        **_member_ref(ctx, member.get("id")),
+        **_member_ref(ctx, member.get("id"), member.get("family_primary_member_id")),
         "call_sign_disabled": is_unlicensed_license_class_id(
             ctx["conn"], member.get("license_class_id")
         ),
@@ -126,6 +132,7 @@ def handle_members_list(ctx: RequestCtx) -> htt.Response:
         "membership_type_id": params["membership_type_id"],
         "arrl": params["arrl"],
         "current_only": params["current_only"],
+        "include_deceased": params.get("include_deceased") or "no",
         "membership_year": year,
     }
     repo = MemberListRepository(ctx["conn"])
@@ -142,6 +149,7 @@ def handle_members_list(ctx: RequestCtx) -> htt.Response:
         membership_type_id=params["membership_type_id"],
         arrl=params["arrl"],
         current_only=params["current_only"],
+        include_deceased=params.get("include_deceased") or "no",
         membership_year=year,
         membership_year_options=myear.option_years(default_year),
         membership_types=repo.list_membership_types(),
@@ -201,7 +209,12 @@ def handle_member_new_post(ctx: RequestCtx) -> htt.Response:
         return html_page(inner, "New member", ctx, active_nav="members", extra_scripts=scripts, status=status)
 
     val_err = member_form_validation.validate_member_row(
-        ctx["conn"], row, body, require_paid_year=True, paid_year=paid_year, member_id=None
+        ctx["conn"],
+        row,
+        body,
+        require_paid_year=not row.get("deceased"),
+        paid_year=paid_year,
+        member_id=None,
     )
     if val_err:
         return fail(val_err, 400)
@@ -212,7 +225,7 @@ def handle_member_new_post(ctx: RequestCtx) -> htt.Response:
         return fail("A member with this name already exists without a call sign.", 409)
     try:
         new_id = members_repo.insert_member(row)
-        if paid_year is not None:
+        if paid_year is not None and not row.get("deceased"):
             join_date = _new_member_join_date()
             initial = join_extension.resolve_new_member_initial_payment(
                 ctx["conn"],
@@ -350,8 +363,14 @@ def handle_member_note_post(ctx: RequestCtx, id_: int) -> htt.Response:
 def handle_payment_new(ctx: RequestCtx, member_id: int) -> htt.Response:
     members_repo = MemberRepository(ctx["conn"])
     payments_repo = PaymentRepository(ctx["conn"])
-    if member_id <= 0 or members_repo.find_member_by_id(member_id) is None:
+    member = members_repo.find_member_by_id(member_id) if member_id > 0 else None
+    if member is None:
         return htt.redirect(htt.url_for("/"))
+    if member.get("deceased"):
+        ctx["session"]["dvra_flash_payment_error"] = (
+            "This member is marked SK and cannot accept new payments."
+        )
+        return htt.redirect(htt.url_for(f"/members/{member_id}/payments"))
     parsed = normalizer.payment_from_form(ctx["form"])
     if not parsed["ok"]:
         ctx["session"]["dvra_flash_payment_error"] = parsed["error"]
@@ -373,6 +392,11 @@ def handle_payment_new(ctx: RequestCtx, member_id: int) -> htt.Response:
         data["membership_year"] = proposed
     try:
         payments_repo.insert_payment(member_id, data)
+    except MemberIsDeceased:
+        ctx["session"]["dvra_flash_payment_error"] = (
+            "This member is marked SK and cannot accept new payments."
+        )
+        return htt.redirect(htt.url_for(f"/members/{member_id}/payments"))
     except Exception:
         ctx["session"]["dvra_flash_payment_error"] = "Could not save payment."
         return htt.redirect(htt.url_for(f"/members/{member_id}/payments"))

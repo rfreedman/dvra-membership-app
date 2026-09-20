@@ -56,6 +56,7 @@ def test_schema_adds_members_notes_column():
     assert sqlite_table_has_column(conn, "members", "nickname")
     assert sqlite_table_has_column(conn, "members", "qrz_email")
     assert sqlite_table_has_column(conn, "members", "family_primary_member_id")
+    assert sqlite_table_has_column(conn, "members", "deceased")
     assert int(conn.execute("PRAGMA user_version").fetchone()[0]) == SCHEMA_USER_VERSION
     conn.close()
 
@@ -94,6 +95,7 @@ def test_schema_migrates_legacy_members_without_notes(tmp_path: Path):
     ensure(conn)
     assert sqlite_table_has_column(conn, "members", "notes")
     assert sqlite_table_has_column(conn, "members", "family_primary_member_id")
+    assert sqlite_table_has_column(conn, "members", "deceased")
     assert int(conn.execute("PRAGMA user_version").fetchone()[0]) == SCHEMA_USER_VERSION
     conn.close()
 

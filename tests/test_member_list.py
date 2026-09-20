@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dvra.member_list import MemberListRepository
+from dvra.member_list import MemberListRepository, parse_list_query
 from dvra.payments import PaymentRepository
 
 from tests.conftest import insert_member, memory_db
@@ -12,6 +12,7 @@ def _list_params(**overrides) -> dict:
         "membership_type_id": None,
         "arrl": "",
         "current_only": "no",
+        "include_deceased": "no",
         "membership_year": 2026,
         "sort_by": "last_name",
         "sort_dir": "asc",
@@ -49,3 +50,10 @@ def test_date_paid_empty_when_no_payments():
     rows = MemberListRepository(conn).list_rows_for_tabulator(_list_params())
     by_id = {r["id"]: r for r in rows}
     assert by_id[mid]["date_paid"] == ""
+
+
+def test_parse_list_query_include_deceased_defaults_off():
+    parsed = parse_list_query({})
+    assert parsed["include_deceased"] == "no"
+    parsed = parse_list_query({"include_deceased": "yes", "current_only": "yes"})
+    assert parsed["include_deceased"] == "yes"

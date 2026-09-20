@@ -3,7 +3,7 @@
   <p class="error">{{ error }}</p>
   {% endif %}
   <div class="member-page-header">
-    <h2>{% if member.call_sign %}{{ member.call_sign }} — {% endif %}{{ member.last_name }}, {{ member.first_name }}</h2>
+    <h2>{% if member.call_sign %}{{ member.call_sign }} — {% endif %}{{ member.last_name }}, {{ member.first_name }}{% if member.deceased %} (SK){% endif %}</h2>
     <div class="member-page-actions">
       <a class="btn-primary member-edit-leave-risk" href="{{ url_for('/members/' ~ member.id ~ '/payments') }}">Payments</a>
     </div>
@@ -98,6 +98,13 @@
       <select id="edit-arrl" class="member-form-control" name="arrl_member">
         <option value="no"{% if not member.arrl_member %} selected{% endif %}>No</option>
         <option value="yes"{% if member.arrl_member %} selected{% endif %}>Yes</option>
+      </select>
+    </div>
+    <div class="member-form-field">
+      <label for="edit-deceased">SK</label>
+      <select id="edit-deceased" class="member-form-control" name="deceased">
+        <option value="no"{% if not member.deceased %} selected{% endif %}>No</option>
+        <option value="yes"{% if member.deceased %} selected{% endif %}>Yes</option>
       </select>
     </div>
     <div class="member-form-field">

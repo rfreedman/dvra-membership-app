@@ -33,6 +33,7 @@ SORT_FIELDS = [
     "membership_type",
     "covered_by",
     "arrl_member",
+    "deceased",
     "date_paid",
     "paid_through",
 ]
@@ -62,6 +63,13 @@ def parse_list_query(qp: dict[str, Any]) -> dict[str, Any]:
     if current_only not in ("yes", "no"):
         current_only = "yes"
 
+    inc = qp.get("include_deceased")
+    if isinstance(inc, (list, tuple)):
+        inc = inc[-1] if inc else "no"
+    include_deceased = str(inc) if inc not in (None, "") else "no"
+    if include_deceased not in ("yes", "no"):
+        include_deceased = "no"
+
     return {
         "sort_by": sort_by,
         "sort_dir": sort_dir,
@@ -69,6 +77,7 @@ def parse_list_query(qp: dict[str, Any]) -> dict[str, Any]:
         "membership_type_id": membership_type_id,
         "arrl": arrl if arrl in ("yes", "no") else "",
         "current_only": current_only,
+        "include_deceased": include_deceased,
         "membership_year": myear.parse_year_input(qp.get("membership_year")),
     }
 
@@ -78,6 +87,7 @@ def list_params_to_query_input(p: dict[str, Any]) -> dict[str, Any]:
         "sort_by": p["sort_by"],
         "sort_dir": p["sort_dir"],
         "current_only": p["current_only"],
+        "include_deceased": p.get("include_deceased") or "no",
         "search": p["search"],
         "arrl": p["arrl"],
     }
@@ -114,6 +124,7 @@ def _order_by_sql(sort_by: str, sort_dir: str) -> str:
         "covered_by": f"(covered_by) IS NULL, covered_by {direction}{tail}",
         "license_class": f"(lc.name) IS NULL, lc.name {direction}{tail}",
         "arrl_member": f"m.arrl_member {direction}{tail}",
+        "deceased": f"m.deceased {direction}{tail}",
     }
     return mapping.get(sort_by, f"m.last_name {direction}{tail}")
 
@@ -147,11 +158,18 @@ def _filter_clause(f: dict[str, Any]) -> tuple[str, list[Any]]:
     elif arrl == "no":
         parts.append("m.arrl_member = 0")
     current_only_flag = str(f.get("current_only") or "yes").strip().lower()
+    include_deceased = str(f.get("include_deceased") or "no").strip().lower() == "yes"
     if current_only_flag != "no":
         year = int(f.get("membership_year") or 0)
-        parts.append(join_extension.sql_exists_payment_current_for_year("pay"))
+        parts.append(
+            join_extension.sql_exists_payment_current_for_year(
+                "pay", include_deceased=include_deceased
+            )
+        )
         bind.append(year)
         bind.append(year)
+    elif not include_deceased:
+        parts.append("COALESCE(m.deceased, 0) = 0")
     return " AND ".join(parts), bind
 
 
@@ -180,6 +198,7 @@ class MemberListRepository:
                 "membership_type_id": p["membership_type_id"],
                 "arrl": p["arrl"],
                 "current_only": p["current_only"],
+                "include_deceased": p.get("include_deceased") or "no",
                 "membership_year": p["membership_year"],
             }
         )
@@ -198,6 +217,7 @@ class MemberListRepository:
                    m.address_state AS address_state,
                    m.address_zip AS address_zip,
                    m.arrl_member AS arrl_member,
+                   m.deceased AS deceased,
                    m.key_number AS key_number,
                    {family.EFFECTIVE_DATE_PAID_SQL} AS date_paid,
                    {family.EFFECTIVE_PAID_THROUGH_SQL} AS paid_through,
@@ -234,6 +254,7 @@ class MemberListRepository:
             "membership_type": str(r["mt_name"] or "").strip(),
             "covered_by": str(r["covered_by"] or "").strip(),
             "arrl_member": bool(r["arrl_member"]),
+            "deceased": bool(r["deceased"]),
             "key_number": int(r["key_number"]) if r["key_number"] is not None else None,
             "date_paid": str(r["date_paid"] or ""),
             "paid_through": str(r["paid_through"] or ""),

@@ -32,6 +32,7 @@
         </div>
         <p class="muted filter-hint">Current means paid for membership year {{ membership_year }}.</p>
       </div>
+      <input type="hidden" name="include_deceased" id="members-include-deceased-field" value="{{ include_deceased }}">
       <div class="filter-grid">
         <label>Membership year
           <select name="membership_year">
@@ -55,6 +56,14 @@
             <option value="yes"{% if arrl == 'yes' %} selected{% endif %}>Yes</option>
             <option value="no"{% if arrl == 'no' %} selected{% endif %}>No</option>
           </select>
+        </label>
+        <label class="members-include-deceased" for="members-include-deceased-cb">
+          <input
+            type="checkbox"
+            id="members-include-deceased-cb"
+            {% if include_deceased == 'yes' %}checked{% endif %}
+          >
+          Include SK members
         </label>
       </div>
       <div class="filter-form-actions">

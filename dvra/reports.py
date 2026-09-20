@@ -241,7 +241,8 @@ class ReportsRepository:
         prior = myear.paid_through_iso(membership_year - 1)
         selected = myear.paid_through_iso(membership_year)
         where = (
-            sql_exists_paid_through_on("prior_pay")
+            "COALESCE(m.deceased, 0) = 0 AND "
+            + sql_exists_paid_through_on("prior_pay")
             + " AND NOT "
             + sql_exists_paid_for_membership_year("sel_pay")
         )

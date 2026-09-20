@@ -12,6 +12,8 @@
   const form = document.getElementById("members-filter-form");
   const currentOnlyField = document.getElementById("members-current-only-field");
   const currentOnlyCb = document.getElementById("members-current-only-cb");
+  const includeDeceasedField = document.getElementById("members-include-deceased-field");
+  const includeDeceasedCb = document.getElementById("members-include-deceased-cb");
   const noteDialog = document.getElementById("member-note-dialog");
   const noteTitle = document.getElementById("member-note-dialog-title");
   const noteError = document.getElementById("member-note-dialog-error");
@@ -23,6 +25,11 @@
 
   function syncCurrentOnlyHiddenFromCheckbox() {
     currentOnlyField.value = currentOnlyCb.checked ? "yes" : "no";
+  }
+
+  function syncIncludeDeceasedHiddenFromCheckbox() {
+    if (!includeDeceasedField || !includeDeceasedCb) return;
+    includeDeceasedField.value = includeDeceasedCb.checked ? "yes" : "no";
   }
 
   function syncExportLinks() {
@@ -311,6 +318,15 @@
         hozAlign: "center",
         formatter: (cell) => (cell.getValue() ? "yes" : "no"),
       },
+      {
+        title: "SK",
+        field: "deceased",
+        sorter: "boolean",
+        width: 108,
+        cssClass: "members-col-ref-data",
+        hozAlign: "center",
+        formatter: (cell) => (cell.getValue() ? "yes" : "no"),
+      },
     ],
     initialSort: [{ column: SERVER_SORT_BY, dir: SERVER_SORT_DIR }],
   });
@@ -337,6 +353,7 @@
 
   form.addEventListener("submit", function () {
     syncCurrentOnlyHiddenFromCheckbox();
+    syncIncludeDeceasedHiddenFromCheckbox();
     const sorters = table.getSorters();
     if (sorters && sorters.length > 0) {
       form.querySelector('[name="sort_by"]').value = sorters[0].field;
@@ -349,6 +366,12 @@
     syncCurrentOnlyHiddenFromCheckbox();
     form.requestSubmit();
   });
+  if (includeDeceasedCb) {
+    includeDeceasedCb.addEventListener("change", function () {
+      syncIncludeDeceasedHiddenFromCheckbox();
+      form.requestSubmit();
+    });
+  }
 
   function redrawMembersGrid() {
     table.redraw(true);

@@ -86,6 +86,13 @@
       </select>
     </div>
     <div class="member-form-field">
+      <label for="new-deceased">SK</label>
+      <select id="new-deceased" class="member-form-control" name="deceased">
+        <option value="no"{% if form_values.get('deceased', 'no') != 'yes' %} selected{% endif %}>No</option>
+        <option value="yes"{% if form_values.get('deceased') == 'yes' %} selected{% endif %}>Yes</option>
+      </select>
+    </div>
+    <div class="member-form-field">
       <label for="new-key">Key number</label>
       <input id="new-key" class="member-form-control no-spinner" name="key_number" type="number" min="0" step="1" placeholder="optional" value="{{ form_values.get('key_number', '') }}">
     </div>

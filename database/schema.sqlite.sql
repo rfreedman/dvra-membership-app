@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS members (
     membership_type_id INTEGER REFERENCES membership_types(id),
     family_primary_member_id INTEGER REFERENCES members(id),
     arrl_member INTEGER NOT NULL DEFAULT 0,
+    deceased INTEGER NOT NULL DEFAULT 0,
     key_number INTEGER,
     paid_through TEXT,
     notes TEXT,
