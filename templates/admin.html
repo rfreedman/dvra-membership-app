@@ -53,14 +53,26 @@
           {% for lc in license_classes %}
           <tr>
             <td>
-              <div class="admin-ref-item-row">
+              <div class="admin-ref-item-row{% if lc.hidden %} admin-ref-item-hidden{% endif %}">
                 <form class="admin-ref-row-form" method="post" action="{{ url_for('/admin/license/' ~ lc.id ~ '/update') }}">
                   <input type="text" name="name" value="{{ lc.name or '' }}" maxlength="64" required class="admin-ref-name-input" aria-label="License class name">
                   <button type="submit">Save</button>
                 </form>
-                <form class="admin-ref-row-form admin-ref-delete-form" method="post" action="{{ url_for('/admin/license/' ~ lc.id ~ '/delete') }}">
+                {% if lc.hidden %}
+                <span class="muted admin-ref-hidden-label">Hidden</span>
+                <form class="admin-ref-row-form admin-ref-action-form" method="post" action="{{ url_for('/admin/license/' ~ lc.id ~ '/unhide') }}">
+                  <button type="submit">Unhide</button>
+                </form>
+                {% elif lc.referenced %}
+                <form class="admin-ref-row-form admin-ref-action-form" method="post" action="{{ url_for('/admin/license/' ~ lc.id ~ '/hide') }}">
+                  <button type="submit">Hide</button>
+                </form>
+                {% endif %}
+                {% if not lc.referenced %}
+                <form class="admin-ref-row-form admin-ref-action-form admin-ref-delete-form" method="post" action="{{ url_for('/admin/license/' ~ lc.id ~ '/delete') }}">
                   <button type="submit" class="btn-danger">Delete</button>
                 </form>
+                {% endif %}
               </div>
             </td>
           </tr>
@@ -92,7 +104,7 @@
           {% for mt in membership_types %}
           <tr>
             <td>
-              <div class="admin-ref-item-row">
+              <div class="admin-ref-item-row{% if mt.hidden %} admin-ref-item-hidden{% endif %}">
                 {% if mt.protected %}
                 <span class="admin-ref-protected-name">{{ mt.name or '' }}</span>
                 <span class="muted">Built-in type</span>
@@ -101,7 +113,19 @@
                   <input type="text" name="name" value="{{ mt.name or '' }}" maxlength="64" required class="admin-ref-name-input" aria-label="Membership type name">
                   <button type="submit">Save</button>
                 </form>
-                <form class="admin-ref-row-form admin-ref-delete-form" method="post" action="{{ url_for('/admin/membership-type/' ~ mt.id ~ '/delete') }}">
+                {% endif %}
+                {% if mt.hidden %}
+                <span class="muted admin-ref-hidden-label">Hidden</span>
+                <form class="admin-ref-row-form admin-ref-action-form" method="post" action="{{ url_for('/admin/membership-type/' ~ mt.id ~ '/unhide') }}">
+                  <button type="submit">Unhide</button>
+                </form>
+                {% elif mt.referenced or mt.protected %}
+                <form class="admin-ref-row-form admin-ref-action-form" method="post" action="{{ url_for('/admin/membership-type/' ~ mt.id ~ '/hide') }}">
+                  <button type="submit">Hide</button>
+                </form>
+                {% endif %}
+                {% if not mt.referenced and not mt.protected %}
+                <form class="admin-ref-row-form admin-ref-action-form admin-ref-delete-form" method="post" action="{{ url_for('/admin/membership-type/' ~ mt.id ~ '/delete') }}">
                   <button type="submit" class="btn-danger">Delete</button>
                 </form>
                 {% endif %}

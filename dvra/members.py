@@ -24,11 +24,25 @@ class MemberRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self.conn = conn
 
-    def list_license_classes(self) -> list[dict]:
-        return ReferenceDataRepository(self.conn).list_license_classes()
+    def list_license_classes(
+        self,
+        *,
+        include_hidden: bool = True,
+        include_ids: list[int] | None = None,
+    ) -> list[dict]:
+        return ReferenceDataRepository(self.conn).list_license_classes(
+            include_hidden=include_hidden, include_ids=include_ids
+        )
 
-    def list_membership_types(self) -> list[dict]:
-        return ReferenceDataRepository(self.conn).list_membership_types()
+    def list_membership_types(
+        self,
+        *,
+        include_hidden: bool = True,
+        include_ids: list[int] | None = None,
+    ) -> list[dict]:
+        return ReferenceDataRepository(self.conn).list_membership_types(
+            include_hidden=include_hidden, include_ids=include_ids
+        )
 
     def find_member_by_id(self, id_: int) -> dict | None:
         row = self.conn.execute(

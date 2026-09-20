@@ -210,7 +210,7 @@ def test_admin_cannot_rename_or_delete_new_ham():
     still = conn.execute("SELECT name FROM membership_types WHERE id = ?", (nh,)).fetchone()
     assert str(still["name"]) == new_ham.NEW_HAM_TYPE_NAME
     try:
-        ref.delete_membership_type_or_fail(nh, 2026)
+        ref.delete_membership_type_or_fail(nh)
         raised_delete = False
     except RuntimeError as e:
         raised_delete = True

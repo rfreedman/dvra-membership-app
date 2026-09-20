@@ -16,7 +16,7 @@
       <label for="new-license">License class</label>
       <select id="new-license" class="member-form-control" name="license_class" required>
         {% for item in license_classes %}
-        <option value="{{ item.id }}" data-license-name="{{ (item.name or '')|trim }}"{% if form_values.get('license_class', '') == (item.id|string) %} selected{% endif %}>{{ (item.name or '')|trim }}</option>
+        <option value="{{ item.id }}" data-license-name="{{ (item.name or '')|trim }}"{% if form_values.get('license_class', '') == (item.id|string) %} selected{% endif %}>{{ (item.name or '')|trim }}{% if item.hidden %} (hidden){% endif %}</option>
         {% endfor %}
       </select>
     </div>
@@ -65,7 +65,7 @@
       <label for="new-membership">Membership type</label>
       <select id="new-membership" class="member-form-control" name="membership_type" required>
         {% for item in membership_types %}
-        <option value="{{ item.id }}"{% if (form_values.get('membership_type') or (selected_membership_type_id|string if selected_membership_type_id is not none else '')) == (item.id|string) %} selected{% endif %}>{{ (item.name or '')|trim }}</option>
+        <option value="{{ item.id }}"{% if (form_values.get('membership_type') or (selected_membership_type_id|string if selected_membership_type_id is not none else '')) == (item.id|string) %} selected{% endif %}>{{ (item.name or '')|trim }}{% if item.hidden %} (hidden){% endif %}</option>
         {% endfor %}
       </select>
     </div>

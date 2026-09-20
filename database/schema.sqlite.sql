@@ -4,12 +4,14 @@
 CREATE TABLE IF NOT EXISTS license_classes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR(64) NOT NULL,
+    hidden INTEGER NOT NULL DEFAULT 0,
     CONSTRAINT uq_license_class_name UNIQUE (name)
 );
 
 CREATE TABLE IF NOT EXISTS membership_types (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR(64) NOT NULL,
+    hidden INTEGER NOT NULL DEFAULT 0,
     CONSTRAINT uq_membership_type_name UNIQUE (name)
 );
 

@@ -21,7 +21,7 @@ def test_payment_from_form_requires_year():
     assert ok["data"]["membership_year"] == 2026
 
 
-def test_membership_type_delete_blocked_by_current_year_payment():
+def test_membership_type_delete_blocked_when_used_by_payment():
     conn = memory_db()
     conn.execute("INSERT INTO membership_types (name) VALUES ('Annual')")
     conn.commit()
@@ -42,9 +42,9 @@ def test_membership_type_delete_blocked_by_current_year_payment():
     )
     conn.commit()
     ref = ReferenceDataRepository(conn)
-    assert ref.membership_type_blocked_by_payments(tid, 2026) is True
+    assert ref.membership_type_is_referenced(tid) is True
     try:
-        ref.delete_membership_type_or_fail(tid, 2026)
+        ref.delete_membership_type_or_fail(tid)
         raised = False
     except RuntimeError:
         raised = True

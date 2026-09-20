@@ -15,6 +15,7 @@ class LicenseClass(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(64), nullable=False)
+    hidden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class MembershipType(Base):
@@ -23,6 +24,7 @@ class MembershipType(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(64), nullable=False)
+    hidden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class AdminUser(Base):

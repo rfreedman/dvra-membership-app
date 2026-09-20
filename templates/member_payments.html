@@ -63,7 +63,9 @@
         <select name="membership_type">
           <option value="">—</option>
           {% for item in membership_types %}
+          {% if not item.hidden %}
           <option value="{{ item.id }}">{{ (item.name or '')|trim }}</option>
+          {% endif %}
           {% endfor %}
         </select>
       </label>
@@ -121,7 +123,9 @@
             <select class="payment-row-input" form="payment-row-{{ payment.id }}" name="membership_type">
               <option value="">—</option>
               {% for item in membership_types %}
-              <option value="{{ item.id }}"{% if payment.membership_type_id == item.id %} selected{% endif %}>{{ (item.name or '')|trim }}</option>
+              {% if not item.hidden or payment.membership_type_id == item.id %}
+              <option value="{{ item.id }}"{% if payment.membership_type_id == item.id %} selected{% endif %}>{{ (item.name or '')|trim }}{% if item.hidden %} (hidden){% endif %}</option>
+              {% endif %}
               {% endfor %}
             </select>
           </td>

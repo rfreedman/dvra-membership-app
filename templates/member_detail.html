@@ -25,7 +25,7 @@
       <label for="edit-license">License class</label>
       <select id="edit-license" class="member-form-control" name="license_class" required>
         {% for item in license_classes %}
-        <option value="{{ item.id }}" data-license-name="{{ (item.name or '')|trim }}"{% if member.license_class_id == item.id %} selected{% endif %}>{{ (item.name or '')|trim }}</option>
+        <option value="{{ item.id }}" data-license-name="{{ (item.name or '')|trim }}"{% if member.license_class_id == item.id %} selected{% endif %}>{{ (item.name or '')|trim }}{% if item.hidden %} (hidden){% endif %}</option>
         {% endfor %}
       </select>
     </div>
@@ -74,7 +74,7 @@
       <label for="edit-membership">Membership type</label>
       <select id="edit-membership" class="member-form-control" name="membership_type" required>
         {% for item in membership_types %}
-        <option value="{{ item.id }}"{% if member.membership_type_id == item.id %} selected{% endif %}>{{ (item.name or '')|trim }}</option>
+        <option value="{{ item.id }}"{% if member.membership_type_id == item.id %} selected{% endif %}>{{ (item.name or '')|trim }}{% if item.hidden %} (hidden){% endif %}</option>
         {% endfor %}
       </select>
     </div>

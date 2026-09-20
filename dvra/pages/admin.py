@@ -27,9 +27,13 @@ def handle_admin_get(ctx: RequestCtx) -> htt.Response:
     current_year = settings.get_current_membership_year()
     new_member_extension_start = settings.get_new_member_extension_start()
     new_ham_extension_start = settings.get_new_ham_extension_start()
+    license_classes = ref.list_license_classes()
+    for lc in license_classes:
+        lc["referenced"] = ref.license_class_is_referenced(lc["id"])
     membership_types = ref.list_membership_types()
     for mt in membership_types:
         mt["protected"] = (mt.get("name") or "") == NEW_HAM_TYPE_NAME
+        mt["referenced"] = ref.membership_type_is_referenced(mt["id"])
     inner = view.render(
         "admin.html",
         base=htt.app_base(),
@@ -38,7 +42,7 @@ def handle_admin_get(ctx: RequestCtx) -> htt.Response:
         new_member_extension_start=new_member_extension_start,
         new_ham_extension_start=new_ham_extension_start,
         membership_year_options=myear.option_years(current_year),
-        license_classes=ref.list_license_classes(),
+        license_classes=license_classes,
         membership_types=membership_types,
         admin_users=accounts.list_admin_users(),
         managers=accounts.list_managers(),
@@ -107,9 +111,29 @@ def handle_license_delete(ctx: RequestCtx, id_: int) -> htt.Response:
     if id_ <= 0:
         return admin_redirect("Invalid license class.")
     try:
-        ReferenceDataRepository(ctx["conn"]).delete_license_class(id_)
+        ReferenceDataRepository(ctx["conn"]).delete_license_class_or_fail(id_)
+    except RuntimeError as e:
+        return admin_redirect(str(e))
     except sqlite3.IntegrityError as e:
         return admin_redirect(ref_write_error(e) or str(e))
+    return admin_redirect()
+
+
+def handle_license_hide(ctx: RequestCtx, id_: int) -> htt.Response:
+    return _set_license_hidden(ctx, id_, True)
+
+
+def handle_license_unhide(ctx: RequestCtx, id_: int) -> htt.Response:
+    return _set_license_hidden(ctx, id_, False)
+
+
+def _set_license_hidden(ctx: RequestCtx, id_: int, hidden: bool) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
+    if id_ <= 0:
+        return admin_redirect("Invalid license class.")
+    ReferenceDataRepository(ctx["conn"]).set_license_class_hidden(id_, hidden)
     return admin_redirect()
 
 
@@ -150,12 +174,29 @@ def handle_mt_delete(ctx: RequestCtx, id_: int) -> htt.Response:
     if id_ <= 0:
         return admin_redirect("Invalid membership type.")
     try:
-        year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
-        ReferenceDataRepository(ctx["conn"]).delete_membership_type_or_fail(id_, year)
+        ReferenceDataRepository(ctx["conn"]).delete_membership_type_or_fail(id_)
     except RuntimeError as e:
         return admin_redirect(str(e))
     except sqlite3.IntegrityError as e:
         return admin_redirect(ref_write_error(e) or str(e))
+    return admin_redirect()
+
+
+def handle_mt_hide(ctx: RequestCtx, id_: int) -> htt.Response:
+    return _set_mt_hidden(ctx, id_, True)
+
+
+def handle_mt_unhide(ctx: RequestCtx, id_: int) -> htt.Response:
+    return _set_mt_hidden(ctx, id_, False)
+
+
+def _set_mt_hidden(ctx: RequestCtx, id_: int, hidden: bool) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
+    if id_ <= 0:
+        return admin_redirect("Invalid membership type.")
+    ReferenceDataRepository(ctx["conn"]).set_membership_type_hidden(id_, hidden)
     return admin_redirect()
 
 

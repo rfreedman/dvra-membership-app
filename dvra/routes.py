@@ -90,6 +90,12 @@ def _match_authed(method: str, path: str, ctx: RequestCtx) -> htt.Response | Non
     m = _m(path, r"/admin/license/(\d+)/delete")
     if method == "POST" and m:
         return admin_pages.handle_license_delete(ctx, int(m.group(1)))
+    m = _m(path, r"/admin/license/(\d+)/hide")
+    if method == "POST" and m:
+        return admin_pages.handle_license_hide(ctx, int(m.group(1)))
+    m = _m(path, r"/admin/license/(\d+)/unhide")
+    if method == "POST" and m:
+        return admin_pages.handle_license_unhide(ctx, int(m.group(1)))
     if method == "POST" and path == "/admin/membership-type/create":
         return admin_pages.handle_mt_create(ctx)
     m = _m(path, r"/admin/membership-type/(\d+)/update")
@@ -98,6 +104,12 @@ def _match_authed(method: str, path: str, ctx: RequestCtx) -> htt.Response | Non
     m = _m(path, r"/admin/membership-type/(\d+)/delete")
     if method == "POST" and m:
         return admin_pages.handle_mt_delete(ctx, int(m.group(1)))
+    m = _m(path, r"/admin/membership-type/(\d+)/hide")
+    if method == "POST" and m:
+        return admin_pages.handle_mt_hide(ctx, int(m.group(1)))
+    m = _m(path, r"/admin/membership-type/(\d+)/unhide")
+    if method == "POST" and m:
+        return admin_pages.handle_mt_unhide(ctx, int(m.group(1)))
     if method == "POST" and path == "/admins/create":
         return admin_pages.handle_admin_create(ctx)
     m = _m(path, r"/admins/(\d+)/password")

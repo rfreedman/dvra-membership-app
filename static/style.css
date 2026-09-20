@@ -1341,8 +1341,9 @@ input.no-spinner[type="number"] {
 
 .admin-reference-page .admin-ref-row-form {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.5rem 0.65rem;
   margin: 0;
 }
@@ -1351,26 +1352,39 @@ input.no-spinner[type="number"] {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem 0.75rem;
+  justify-content: flex-start;
+  gap: 0.5rem 0.65rem;
 }
 
 .admin-reference-page .admin-ref-item-row > .admin-ref-row-form:first-child {
-  flex: 1 1 16rem;
+  flex: 0 1 auto;
   min-width: 0;
 }
 
-.admin-reference-page .admin-ref-item-row > .admin-ref-delete-form {
+.admin-reference-page .admin-ref-item-row > .admin-ref-delete-form,
+.admin-reference-page .admin-ref-item-row > .admin-ref-action-form {
   flex: 0 0 auto;
 }
 
-.admin-reference-page .admin-ref-row-form.admin-ref-delete-form {
+.admin-reference-page .admin-ref-row-form.admin-ref-delete-form,
+.admin-reference-page .admin-ref-row-form.admin-ref-action-form {
   justify-content: flex-start;
 }
 
+.admin-reference-page .admin-ref-item-hidden .admin-ref-name-input,
+.admin-reference-page .admin-ref-item-hidden .admin-ref-protected-name {
+  color: var(--color-muted);
+}
+
+.admin-reference-page .admin-ref-hidden-label {
+  font-size: 0.85rem;
+}
+
 .admin-reference-page .admin-ref-name-input {
-  flex: 1 1 12rem;
+  flex: 0 0 16rem;
+  width: 16rem;
   min-width: 10rem;
-  max-width: 28rem;
+  max-width: 16rem;
 }
 
 .admin-reference-page .admin-ref-protected-name {

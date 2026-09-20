@@ -24,7 +24,7 @@ from dvra.member_list import MemberListRepository
 from dvra.members import DuplicateMemberKeyNumber, MemberHasFamilySecondaries, MemberRepository
 from dvra.pages.common import download_export, html_page, member_not_found
 from dvra.payments import MemberIsDeceased, PaymentRepository
-from dvra.reference_data import find_default_membership_type_id
+from dvra.reference_data import ReferenceDataRepository, find_default_membership_type_id
 
 
 def _resolve_member_list_params(conn: sqlite3.Connection, flat: dict[str, Any]) -> dict[str, Any]:
@@ -42,12 +42,18 @@ def _member_ref(
     ctx: RequestCtx,
     exclude_member_id: int | None = None,
     include_primary_id: int | None = None,
+    include_license_ids: list[int] | None = None,
+    include_membership_ids: list[int] | None = None,
 ) -> dict[str, Any]:
     repo = MemberRepository(ctx["conn"])
     year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
     return {
-        "license_classes": repo.list_license_classes(),
-        "membership_types": repo.list_membership_types(),
+        "license_classes": repo.list_license_classes(
+            include_hidden=False, include_ids=include_license_ids
+        ),
+        "membership_types": repo.list_membership_types(
+            include_hidden=False, include_ids=include_membership_ids
+        ),
         "family_primary_options": repo.list_family_primary_options(
             exclude_member_id, include_primary_id
         ),
@@ -69,7 +75,13 @@ def _member_detail_template_ctx(ctx: RequestCtx, member: dict[str, Any]) -> dict
     if member_id is not None:
         has_current = family.member_has_payment_for_year(ctx["conn"], int(member_id), year)
     return {
-        **_member_ref(ctx, member.get("id"), member.get("family_primary_member_id")),
+        **_member_ref(
+            ctx,
+            member.get("id"),
+            member.get("family_primary_member_id"),
+            include_license_ids=[member.get("license_class_id")],
+            include_membership_ids=[member.get("membership_type_id")],
+        ),
         "call_sign_disabled": is_unlicensed_license_class_id(
             ctx["conn"], member.get("license_class_id")
         ),
@@ -406,6 +418,12 @@ def handle_payment_new(ctx: RequestCtx, member_id: int) -> htt.Response:
         ctx["session"]["dvra_flash_payment_error"] = parsed["error"]
         return htt.redirect(htt.url_for(f"/members/{member_id}/payments"))
     data = parsed["data"]
+    hidden_err = ReferenceDataRepository(ctx["conn"]).hidden_membership_type_attach_error(
+        data["membership_type_id"]
+    )
+    if hidden_err:
+        ctx["session"]["dvra_flash_payment_error"] = hidden_err
+        return htt.redirect(htt.url_for(f"/members/{member_id}/payments"))
     new_ham_err = new_ham.payment_membership_type_error(
         ctx["conn"], member_id, data["membership_type_id"]
     )
@@ -444,6 +462,13 @@ def handle_payment_edit(ctx: RequestCtx, payment_id: int) -> htt.Response:
         ctx["session"]["dvra_flash_payment_error"] = parsed["error"]
         return htt.redirect(htt.url_for(f"/members/{member_id}/payments"))
     data = parsed["data"]
+    hidden_err = ReferenceDataRepository(ctx["conn"]).hidden_membership_type_attach_error(
+        data["membership_type_id"],
+        existing_id=meta.get("membership_type_id"),
+    )
+    if hidden_err:
+        ctx["session"]["dvra_flash_payment_error"] = hidden_err
+        return htt.redirect(htt.url_for(f"/members/{member_id}/payments"))
     new_ham_err = new_ham.payment_membership_type_error(
         ctx["conn"], member_id, data["membership_type_id"], payment_id
     )
@@ -492,11 +517,15 @@ def handle_member_payments(ctx: RequestCtx, id_: int) -> htt.Response:
     rollover = ctx["session"].pop("dvra_flash_payment_rollover", None)
     payments = members_repo.list_payments_for_member(id_)
     default_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
+    include_type_ids = [member.get("membership_type_id")]
+    include_type_ids.extend(p.get("membership_type_id") for p in payments)
     inner = view.render(
         "member_payments.html",
         member=member,
         payments=payments,
-        membership_types=members_repo.list_membership_types(),
+        membership_types=members_repo.list_membership_types(
+            include_hidden=False, include_ids=include_type_ids
+        ),
         flash_error=flash,
         rollover=rollover,
         new_ham_notice=new_ham.NEW_HAM_PAYMENTS_NOTICE

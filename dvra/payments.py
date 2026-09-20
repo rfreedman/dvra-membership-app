@@ -49,11 +49,16 @@ class PaymentRepository:
 
     def find_payment_meta(self, payment_id: int) -> dict | None:
         row = self.conn.execute(
-            "SELECT member_id FROM payments WHERE id = ? LIMIT 1", (payment_id,)
+            "SELECT member_id, membership_type_id FROM payments WHERE id = ? LIMIT 1",
+            (payment_id,),
         ).fetchone()
         if row is None:
             return None
-        return {"member_id": int(row["member_id"])}
+        mt_id = row["membership_type_id"]
+        return {
+            "member_id": int(row["member_id"]),
+            "membership_type_id": int(mt_id) if mt_id is not None else None,
+        }
 
     def member_has_payment_for_year(
         self, member_id: int, year: int, exclude_payment_id: int | None = None

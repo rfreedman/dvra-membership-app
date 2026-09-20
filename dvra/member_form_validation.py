@@ -8,6 +8,11 @@ from typing import Any
 from dvra import family
 from dvra import normalizer
 from dvra.license_class import find_unlicensed_class_id
+from dvra.reference_data import (
+    HIDDEN_LICENSE_CLASS,
+    HIDDEN_MEMBERSHIP_TYPE,
+    ReferenceDataRepository,
+)
 
 
 def _form_str(body: dict[str, Any], key: str) -> str:
@@ -42,6 +47,26 @@ def validate_member_row(
 
     if row.get("membership_type_id") is None:
         return "Membership type is required."
+
+    existing_lc = None
+    existing_mt = None
+    if member_id is not None:
+        existing = conn.execute(
+            "SELECT license_class_id, membership_type_id FROM members WHERE id = ?",
+            (member_id,),
+        ).fetchone()
+        if existing is not None:
+            if existing["license_class_id"] is not None:
+                existing_lc = int(existing["license_class_id"])
+            if existing["membership_type_id"] is not None:
+                existing_mt = int(existing["membership_type_id"])
+    ref = ReferenceDataRepository(conn)
+    if ref.is_hidden_license_class(row.get("license_class_id")) and row.get("license_class_id") != existing_lc:
+        return HIDDEN_LICENSE_CLASS
+    if ref.is_hidden_membership_type(row.get("membership_type_id")) and row.get(
+        "membership_type_id"
+    ) != existing_mt:
+        return HIDDEN_MEMBERSHIP_TYPE
 
     if normalizer.strip_optional(_form_str(body, "email")) is None:
         return "Email is required."
