@@ -7,6 +7,7 @@ from datetime import date, datetime
 from typing import Any
 
 from dvra import join_extension
+from dvra import membership_year as myear
 from dvra.member_list import DATE_PAID_SUBQUERY
 from dvra.sort_toggle import next_sort_choice, normalize_sort
 
@@ -74,6 +75,54 @@ def next_new_members_sort_choice(
         clicked_field,
         desc_first=("date_paid", "paid_through"),
     )
+
+
+def parse_year_memberships_query(qp: dict[str, Any], fallback_year: int) -> dict[str, Any]:
+    year = myear.parse_year_input(qp.get("membership_year"), fallback_year)
+    if year is None:
+        year = fallback_year
+    sort_by, sort_dir = normalize_sort(
+        str(qp.get("sort_by", "name")).strip(),
+        str(qp.get("sort_dir", "asc")).strip(),
+        NEW_MEMBERS_SORT_FIELDS,
+        "name",
+    )
+    return {"membership_year": year, "sort_by": sort_by, "sort_dir": sort_dir}
+
+
+def sql_exists_paid_through_on(alias: str = "p") -> str:
+    return f"""EXISTS (
+        SELECT 1 FROM payments {alias}
+        WHERE {alias}.member_id = m.id
+          AND date({alias}.paid_through) = date(?)
+    )"""
+
+
+def sql_exists_paid_for_membership_year(alias: str = "p") -> str:
+    """Payment covers Y-12-31 and membership_year is Y or Y-1 (late-join extension)."""
+    return f"""EXISTS (
+        SELECT 1 FROM payments {alias}
+        WHERE {alias}.member_id = m.id
+          AND {alias}.membership_year IN (?, ?)
+          AND date({alias}.paid_through) >= date(?)
+    )"""
+
+
+_MEMBER_DETAIL_SELECT = f"""
+            SELECT m.id AS id,
+                   m.last_name AS last_name,
+                   m.first_name AS first_name,
+                   m.call_sign AS call_sign,
+                   m.address_city AS address_city,
+                   m.address_state AS address_state,
+                   lc.name AS license_class,
+                   mt.name AS membership_type,
+                   {DATE_PAID_SUBQUERY} AS date_paid,
+                   m.paid_through AS paid_through
+            FROM members m
+            LEFT JOIN license_classes lc ON m.license_class_id = lc.id
+            LEFT JOIN membership_types mt ON m.membership_type_id = mt.id
+"""
 
 
 def _new_members_order_by(sort_by: str, sort_dir: str) -> str:
@@ -171,28 +220,53 @@ class ReportsRepository:
         self, since: str, sort_by: str = "name", sort_dir: str = "asc"
     ) -> list[dict]:
         parsed = parse_new_members_query({"sort_by": sort_by, "sort_dir": sort_dir, "since": since})
-        order = _new_members_order_by(parsed["sort_by"], parsed["sort_dir"])
+        where = f"""{DATE_PAID_SUBQUERY} IS NOT NULL
+              AND date({DATE_PAID_SUBQUERY}) >= date(?)"""
+        return self._list_member_detail_rows(where, (parsed["since"],), parsed["sort_by"], parsed["sort_dir"])
+
+    def list_paid_memberships(
+        self, membership_year: int, sort_by: str = "name", sort_dir: str = "asc"
+    ) -> list[dict]:
+        cutoff = myear.paid_through_iso(membership_year)
+        where = sql_exists_paid_for_membership_year("pay")
+        return self._list_member_detail_rows(
+            where, (membership_year, membership_year - 1, cutoff), sort_by, sort_dir
+        )
+
+    def list_unpaid_memberships(
+        self, membership_year: int, sort_by: str = "name", sort_dir: str = "asc"
+    ) -> list[dict]:
+        prior = myear.paid_through_iso(membership_year - 1)
+        selected = myear.paid_through_iso(membership_year)
+        where = (
+            sql_exists_paid_through_on("prior_pay")
+            + " AND NOT "
+            + sql_exists_paid_for_membership_year("sel_pay")
+        )
+        return self._list_member_detail_rows(
+            where,
+            (prior, membership_year, membership_year - 1, selected),
+            sort_by,
+            sort_dir,
+        )
+
+    def _list_member_detail_rows(
+        self, where_sql: str, bind: tuple[Any, ...], sort_by: str, sort_dir: str
+    ) -> list[dict]:
+        sort_by, sort_dir = normalize_sort(sort_by, sort_dir, NEW_MEMBERS_SORT_FIELDS, "name")
+        order = _new_members_order_by(sort_by, sort_dir)
         rows = self.conn.execute(
             f"""
-            SELECT m.id AS id,
-                   m.last_name AS last_name,
-                   m.first_name AS first_name,
-                   m.call_sign AS call_sign,
-                   m.address_city AS address_city,
-                   m.address_state AS address_state,
-                   lc.name AS license_class,
-                   mt.name AS membership_type,
-                   {DATE_PAID_SUBQUERY} AS date_paid,
-                   m.paid_through AS paid_through
-            FROM members m
-            LEFT JOIN license_classes lc ON m.license_class_id = lc.id
-            LEFT JOIN membership_types mt ON m.membership_type_id = mt.id
-            WHERE {DATE_PAID_SUBQUERY} IS NOT NULL
-              AND date({DATE_PAID_SUBQUERY}) >= date(?)
+            {_MEMBER_DETAIL_SELECT}
+            WHERE {where_sql}
             ORDER BY {order}
             """,
-            (parsed["since"],),
+            bind,
         ).fetchall()
+        return self._map_member_detail(rows)
+
+    @staticmethod
+    def _map_member_detail(rows: list[sqlite3.Row]) -> list[dict]:
         out = []
         for r in rows:
             cs = str(r["call_sign"]).upper().strip() if r["call_sign"] is not None else ""

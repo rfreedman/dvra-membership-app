@@ -297,8 +297,8 @@ def _new_member_name(r: dict) -> str:
     return f"{r.get('last_name') or ''}, {r.get('first_name') or ''}".strip()
 
 
-def new_members_csv(rows: list[dict]) -> bytes:
-    headers = [
+def _membership_status_headers() -> list[str]:
+    return [
         "Name",
         "Call sign",
         "License type",
@@ -308,57 +308,47 @@ def new_members_csv(rows: list[dict]) -> bytes:
         "Date paid",
         "Paid through",
     ]
-    return _csv_bytes(
-        headers,
+
+
+def _membership_status_matrix(rows: list[dict]) -> list[list[str]]:
+    return [
         [
-            [
-                _new_member_name(r),
-                r["call_sign"],
-                r["license_class"],
-                r.get("membership_type") or "",
-                r["city"],
-                r["state"],
-                r.get("date_paid") or "",
-                r.get("paid_through") or "",
-            ]
-            for r in rows
-        ],
-    )
+            _new_member_name(r),
+            r["call_sign"],
+            r["license_class"],
+            r.get("membership_type") or "",
+            r["city"],
+            r["state"],
+            r.get("date_paid") or "",
+            r.get("paid_through") or "",
+        ]
+        for r in rows
+    ]
+
+
+def new_members_csv(rows: list[dict]) -> bytes:
+    return membership_status_csv(rows)
 
 
 def new_members_xlsx(rows: list[dict]) -> bytes:
-    headers = [
-        "Name",
-        "Call sign",
-        "License type",
-        "Membership type",
-        "City",
-        "State",
-        "Date paid",
-        "Paid through",
-    ]
-    return _xlsx_bytes(
-        headers,
-        [
-            [
-                _new_member_name(r),
-                r["call_sign"],
-                r["license_class"],
-                r.get("membership_type") or "",
-                r["city"],
-                r["state"],
-                r.get("date_paid") or "",
-                r.get("paid_through") or "",
-            ]
-            for r in rows
-        ],
-        "New members",
-    )
+    return membership_status_xlsx(rows, "New members")
 
 
 def new_members_pdf(rows: list[dict]) -> bytes:
+    return membership_status_pdf(rows, "New members")
+
+
+def membership_status_csv(rows: list[dict]) -> bytes:
+    return _csv_bytes(_membership_status_headers(), _membership_status_matrix(rows))
+
+
+def membership_status_xlsx(rows: list[dict], sheet_name: str) -> bytes:
+    return _xlsx_bytes(_membership_status_headers(), _membership_status_matrix(rows), sheet_name)
+
+
+def membership_status_pdf(rows: list[dict], title: str) -> bytes:
     return _pdf_landscape(
-        "New members",
+        title,
         ["Name", "Call", "License", "Type", "City", "St", "Date paid", "Paid thru"],
         [42, 22, 28, 28, 32, 14, 26, 28],
         [

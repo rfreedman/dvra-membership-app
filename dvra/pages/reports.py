@@ -255,3 +255,132 @@ def handle_new_members_export(ctx: RequestCtx, fmt: str) -> htt.Response:
         xlsx_bytes=lambda: exports.new_members_xlsx(rows),
         pdf_bytes=lambda: exports.new_members_pdf(rows),
     )
+
+
+def _year_memberships_sort_post(params: dict[str, Any]) -> dict[str, dict[str, str]]:
+    sort_post = {}
+    for field in (
+        "name",
+        "call_sign",
+        "license_class",
+        "membership_type",
+        "city",
+        "state",
+        "date_paid",
+        "paid_through",
+    ):
+        nsb, nsd = reports_mod.next_new_members_sort_choice(params["sort_by"], params["sort_dir"], field)
+        sort_post[field] = {"sort_by": nsb, "sort_dir": nsd}
+    return sort_post
+
+
+def handle_paid_memberships_post(ctx: RequestCtx) -> htt.Response:
+    default_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
+    flat = list_params.paid_memberships_merge_post(ctx["session"], ctx["form"])
+    params = reports_mod.parse_year_memberships_query(flat, default_year)
+    list_params.paid_memberships_persist(ctx["session"], params)
+    return htt.redirect(htt.url_for("/reports/paid-memberships"))
+
+
+def handle_unpaid_memberships_post(ctx: RequestCtx) -> htt.Response:
+    default_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
+    flat = list_params.unpaid_memberships_merge_post(ctx["session"], ctx["form"])
+    params = reports_mod.parse_year_memberships_query(flat, default_year)
+    list_params.unpaid_memberships_persist(ctx["session"], params)
+    return htt.redirect(htt.url_for("/reports/unpaid-memberships"))
+
+
+def handle_paid_memberships_get(ctx: RequestCtx) -> htt.Response:
+    default_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
+    params = reports_mod.parse_year_memberships_query(
+        list_params.paid_memberships_read(ctx["session"]), default_year
+    )
+    list_params.paid_memberships_persist(ctx["session"], params)
+    year = int(params["membership_year"])
+    rows = ReportsRepository(ctx["conn"]).list_paid_memberships(year, params["sort_by"], params["sort_dir"])
+    inner = view.render(
+        "reports_year_memberships.html",
+        heading="Paid memberships",
+        help_text=(
+            f"Members paid for membership year {year} "
+            f"(a payment for {year} or {year - 1} with paid through {year}-12-31 or later)."
+        ),
+        total=len(rows),
+        rows=rows,
+        membership_year=year,
+        membership_year_options=myear.option_years(default_year),
+        sort_by=params["sort_by"],
+        sort_dir=params["sort_dir"],
+        sort_post=_year_memberships_sort_post(params),
+        post_action=htt.url_for("/reports/paid-memberships"),
+        export_stem="/reports/paid-memberships/export",
+        export_prefix="paid-memberships-exp-",
+        base=htt.app_base(),
+    )
+    return html_page(inner, "Paid memberships", ctx, active_nav="reports")
+
+
+def handle_unpaid_memberships_get(ctx: RequestCtx) -> htt.Response:
+    default_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
+    params = reports_mod.parse_year_memberships_query(
+        list_params.unpaid_memberships_read(ctx["session"]), default_year
+    )
+    list_params.unpaid_memberships_persist(ctx["session"], params)
+    year = int(params["membership_year"])
+    prior = year - 1
+    rows = ReportsRepository(ctx["conn"]).list_unpaid_memberships(year, params["sort_by"], params["sort_dir"])
+    inner = view.render(
+        "reports_year_memberships.html",
+        heading="Unpaid memberships",
+        help_text=(
+            f"Members paid through {prior}-12-31 who do not have a payment paid through {year}-12-31 or later."
+        ),
+        total=len(rows),
+        rows=rows,
+        membership_year=year,
+        membership_year_options=myear.option_years(default_year),
+        sort_by=params["sort_by"],
+        sort_dir=params["sort_dir"],
+        sort_post=_year_memberships_sort_post(params),
+        post_action=htt.url_for("/reports/unpaid-memberships"),
+        export_stem="/reports/unpaid-memberships/export",
+        export_prefix="unpaid-memberships-exp-",
+        base=htt.app_base(),
+    )
+    return html_page(inner, "Unpaid memberships", ctx, active_nav="reports")
+
+
+def handle_paid_memberships_export(ctx: RequestCtx, fmt: str) -> htt.Response:
+    default_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
+    params = reports_mod.parse_year_memberships_query(
+        list_params.paid_memberships_read(ctx["session"]), default_year
+    )
+    rows = ReportsRepository(ctx["conn"]).list_paid_memberships(
+        int(params["membership_year"]), params["sort_by"], params["sort_dir"]
+    )
+    stem = exports.timestamp_stem("paid-memberships-report", compact=True)
+    return download_export(
+        fmt,
+        stem,
+        csv_bytes=lambda: exports.membership_status_csv(rows),
+        xlsx_bytes=lambda: exports.membership_status_xlsx(rows, "Paid memberships"),
+        pdf_bytes=lambda: exports.membership_status_pdf(rows, "Paid memberships"),
+    )
+
+
+def handle_unpaid_memberships_export(ctx: RequestCtx, fmt: str) -> htt.Response:
+    default_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
+    params = reports_mod.parse_year_memberships_query(
+        list_params.unpaid_memberships_read(ctx["session"]), default_year
+    )
+    rows = ReportsRepository(ctx["conn"]).list_unpaid_memberships(
+        int(params["membership_year"]), params["sort_by"], params["sort_dir"]
+    )
+    stem = exports.timestamp_stem("unpaid-memberships-report", compact=True)
+    return download_export(
+        fmt,
+        stem,
+        csv_bytes=lambda: exports.membership_status_csv(rows),
+        xlsx_bytes=lambda: exports.membership_status_xlsx(rows, "Unpaid memberships"),
+        pdf_bytes=lambda: exports.membership_status_pdf(rows, "Unpaid memberships"),
+    )

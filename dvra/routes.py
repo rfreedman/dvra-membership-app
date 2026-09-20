@@ -211,4 +211,24 @@ def _match_authed(method: str, path: str, ctx: RequestCtx) -> htt.Response | Non
         return report_pages.handle_new_members_export(ctx, "xlsx")
     if method == "GET" and path == "/reports/new-members/export.pdf":
         return report_pages.handle_new_members_export(ctx, "pdf")
+    if method == "POST" and path == "/reports/paid-memberships":
+        return report_pages.handle_paid_memberships_post(ctx)
+    if method == "GET" and path == "/reports/paid-memberships":
+        return report_pages.handle_paid_memberships_get(ctx)
+    if method == "GET" and path == "/reports/paid-memberships/export.csv":
+        return report_pages.handle_paid_memberships_export(ctx, "csv")
+    if method == "GET" and path == "/reports/paid-memberships/export.xlsx":
+        return report_pages.handle_paid_memberships_export(ctx, "xlsx")
+    if method == "GET" and path == "/reports/paid-memberships/export.pdf":
+        return report_pages.handle_paid_memberships_export(ctx, "pdf")
+    if method == "POST" and path == "/reports/unpaid-memberships":
+        return report_pages.handle_unpaid_memberships_post(ctx)
+    if method == "GET" and path == "/reports/unpaid-memberships":
+        return report_pages.handle_unpaid_memberships_get(ctx)
+    if method == "GET" and path == "/reports/unpaid-memberships/export.csv":
+        return report_pages.handle_unpaid_memberships_export(ctx, "csv")
+    if method == "GET" and path == "/reports/unpaid-memberships/export.xlsx":
+        return report_pages.handle_unpaid_memberships_export(ctx, "xlsx")
+    if method == "GET" and path == "/reports/unpaid-memberships/export.pdf":
+        return report_pages.handle_unpaid_memberships_export(ctx, "pdf")
     return None
