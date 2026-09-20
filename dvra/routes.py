@@ -201,4 +201,14 @@ def _match_authed(method: str, path: str, ctx: RequestCtx) -> htt.Response | Non
         return report_pages.handle_roster_callsign_export(ctx, "xlsx")
     if method == "GET" and path == "/reports/roster-by-callsign/export.pdf":
         return report_pages.handle_roster_callsign_export(ctx, "pdf")
+    if method == "POST" and path == "/reports/new-members":
+        return report_pages.handle_new_members_post(ctx)
+    if method == "GET" and path == "/reports/new-members":
+        return report_pages.handle_new_members_get(ctx)
+    if method == "GET" and path == "/reports/new-members/export.csv":
+        return report_pages.handle_new_members_export(ctx, "csv")
+    if method == "GET" and path == "/reports/new-members/export.xlsx":
+        return report_pages.handle_new_members_export(ctx, "xlsx")
+    if method == "GET" and path == "/reports/new-members/export.pdf":
+        return report_pages.handle_new_members_export(ctx, "pdf")
     return None

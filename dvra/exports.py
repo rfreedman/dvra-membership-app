@@ -291,3 +291,87 @@ def roster_by_callsign_pdf(rows: list[dict]) -> bytes:
         [40, 70, 160],
         [[m["call_sign"][:14], m["last_name"][:48], m["first_name"][:48]] for m in rows],
     )
+
+
+def _new_member_name(r: dict) -> str:
+    return f"{r.get('last_name') or ''}, {r.get('first_name') or ''}".strip()
+
+
+def new_members_csv(rows: list[dict]) -> bytes:
+    headers = [
+        "Name",
+        "Call sign",
+        "License type",
+        "Membership type",
+        "City",
+        "State",
+        "Date paid",
+        "Paid through",
+    ]
+    return _csv_bytes(
+        headers,
+        [
+            [
+                _new_member_name(r),
+                r["call_sign"],
+                r["license_class"],
+                r.get("membership_type") or "",
+                r["city"],
+                r["state"],
+                r.get("date_paid") or "",
+                r.get("paid_through") or "",
+            ]
+            for r in rows
+        ],
+    )
+
+
+def new_members_xlsx(rows: list[dict]) -> bytes:
+    headers = [
+        "Name",
+        "Call sign",
+        "License type",
+        "Membership type",
+        "City",
+        "State",
+        "Date paid",
+        "Paid through",
+    ]
+    return _xlsx_bytes(
+        headers,
+        [
+            [
+                _new_member_name(r),
+                r["call_sign"],
+                r["license_class"],
+                r.get("membership_type") or "",
+                r["city"],
+                r["state"],
+                r.get("date_paid") or "",
+                r.get("paid_through") or "",
+            ]
+            for r in rows
+        ],
+        "New members",
+    )
+
+
+def new_members_pdf(rows: list[dict]) -> bytes:
+    return _pdf_landscape(
+        "New members",
+        ["Name", "Call", "License", "Type", "City", "St", "Date paid", "Paid thru"],
+        [42, 22, 28, 28, 32, 14, 26, 28],
+        [
+            [
+                _new_member_name(m)[:36],
+                m["call_sign"][:12],
+                (m.get("license_class") or "")[:16],
+                (m.get("membership_type") or "")[:16],
+                (m.get("city") or "")[:20],
+                (m.get("state") or "")[:4],
+                (m.get("date_paid") or "")[:12],
+                (m.get("paid_through") or "")[:12],
+            ]
+            for m in rows
+        ],
+    )

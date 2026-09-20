@@ -199,3 +199,59 @@ def handle_roster_callsign_export(ctx: RequestCtx, fmt: str) -> htt.Response:
         xlsx_bytes=lambda: exports.roster_by_callsign_xlsx(rows),
         pdf_bytes=lambda: exports.roster_by_callsign_pdf(rows),
     )
+
+
+def handle_new_members_post(ctx: RequestCtx) -> htt.Response:
+    flat = list_params.new_members_merge_post(ctx["session"], ctx["form"])
+    params = reports_mod.parse_new_members_query(flat)
+    list_params.new_members_persist(ctx["session"], params)
+    return htt.redirect(htt.url_for("/reports/new-members"))
+
+
+def handle_new_members_get(ctx: RequestCtx) -> htt.Response:
+    params = reports_mod.parse_new_members_query(list_params.new_members_read(ctx["session"]))
+    list_params.new_members_persist(ctx["session"], params)
+    rows = ReportsRepository(ctx["conn"]).list_new_members(
+        params["since"], params["sort_by"], params["sort_dir"]
+    )
+    post_action = htt.url_for("/reports/new-members")
+    sort_post = {}
+    for field in (
+        "name",
+        "call_sign",
+        "license_class",
+        "membership_type",
+        "city",
+        "state",
+        "date_paid",
+        "paid_through",
+    ):
+        nsb, nsd = reports_mod.next_new_members_sort_choice(params["sort_by"], params["sort_dir"], field)
+        sort_post[field] = {"sort_by": nsb, "sort_dir": nsd}
+    inner = view.render(
+        "reports_new_members.html",
+        total=len(rows),
+        rows=rows,
+        since=params["since"],
+        sort_by=params["sort_by"],
+        sort_dir=params["sort_dir"],
+        new_members_sort_post=sort_post,
+        new_members_post_action=post_action,
+        base=htt.app_base(),
+    )
+    return html_page(inner, "New members", ctx, active_nav="reports")
+
+
+def handle_new_members_export(ctx: RequestCtx, fmt: str) -> htt.Response:
+    params = reports_mod.parse_new_members_query(list_params.new_members_read(ctx["session"]))
+    rows = ReportsRepository(ctx["conn"]).list_new_members(
+        params["since"], params["sort_by"], params["sort_dir"]
+    )
+    stem = exports.timestamp_stem("new-members-report", compact=True)
+    return download_export(
+        fmt,
+        stem,
+        csv_bytes=lambda: exports.new_members_csv(rows),
+        xlsx_bytes=lambda: exports.new_members_xlsx(rows),
+        pdf_bytes=lambda: exports.new_members_pdf(rows),
+    )

@@ -40,7 +40,7 @@
   document.addEventListener("DOMContentLoaded", function () {
     fitScrollablePanels();
     window.requestAnimationFrame(fitScrollablePanels);
-    document.querySelectorAll("select[data-submit-on-change]").forEach(function (el) {
+    document.querySelectorAll("select[data-submit-on-change], input[data-submit-on-change]").forEach(function (el) {
       el.addEventListener("change", function () {
         if (el.form) el.form.requestSubmit();
       });

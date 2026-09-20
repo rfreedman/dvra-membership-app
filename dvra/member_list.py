@@ -11,6 +11,11 @@ from dvra import membership_year as myear
 from dvra.reference_data import ReferenceDataRepository
 from dvra.sort_toggle import normalize_sort
 
+DATE_PAID_SUBQUERY = """(SELECT p.payment_date FROM payments p
+                     WHERE p.member_id = m.id
+                     ORDER BY date(p.payment_date) DESC, p.id DESC
+                     LIMIT 1)"""
+
 SORT_FIELDS = [
     "last_name",
     "first_name",
@@ -183,10 +188,7 @@ class MemberListRepository:
                    m.address_zip AS address_zip,
                    m.arrl_member AS arrl_member,
                    m.key_number AS key_number,
-                   (SELECT p.payment_date FROM payments p
-                     WHERE p.member_id = m.id
-                     ORDER BY date(p.payment_date) DESC, p.id DESC
-                     LIMIT 1) AS date_paid,
+                   {DATE_PAID_SUBQUERY} AS date_paid,
                    m.paid_through AS paid_through,
                    (m.notes IS NOT NULL AND TRIM(m.notes) <> '') AS has_note,
                    lc.name AS lc_name,

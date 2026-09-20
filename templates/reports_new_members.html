@@ -1,0 +1,60 @@
+{% from '_sort_header.html' import sortable_th %}
+{% from '_export_links.html' import export_links %}
+<div class="grid-page">
+  <div class="grid-page-top">
+    <div class="member-page-header">
+      <h2>New members</h2>
+    </div>
+    <form method="post" action="{{ new_members_post_action }}" class="filter-form">
+      <input type="hidden" name="sort_by" value="{{ sort_by }}">
+      <input type="hidden" name="sort_dir" value="{{ sort_dir }}">
+      <div class="filter-grid">
+        <label>Since
+          <input type="date" name="since" value="{{ since }}" data-submit-on-change>
+        </label>
+      </div>
+      <div class="filter-form-actions">
+        <button type="submit">Apply</button>
+      </div>
+    </form>
+    <p class="muted">Members whose date paid (latest payment date) is on or after {{ since }}. Defaults to the first of the current month.</p>
+    <div class="results-and-export-row report-export-row--after-heading">
+      <p class="results-meta">{{ total }} member{% if total != 1 %}s{% endif %}</p>
+      {{ export_links('Export this report:', '/reports/new-members/export', 'new-members-exp-') }}
+    </div>
+  </div>
+  <div class="grid-page-body">
+    <div class="data-table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            {{ sortable_th('name', 'Name', sort_by, sort_dir, new_members_sort_post, new_members_post_action) }}
+            {{ sortable_th('call_sign', 'Call sign', sort_by, sort_dir, new_members_sort_post, new_members_post_action) }}
+            {{ sortable_th('license_class', 'License type', sort_by, sort_dir, new_members_sort_post, new_members_post_action) }}
+            {{ sortable_th('membership_type', 'Membership type', sort_by, sort_dir, new_members_sort_post, new_members_post_action) }}
+            {{ sortable_th('city', 'City', sort_by, sort_dir, new_members_sort_post, new_members_post_action) }}
+            {{ sortable_th('state', 'State', sort_by, sort_dir, new_members_sort_post, new_members_post_action) }}
+            {{ sortable_th('date_paid', 'Date paid', sort_by, sort_dir, new_members_sort_post, new_members_post_action) }}
+            {{ sortable_th('paid_through', 'Paid through', sort_by, sort_dir, new_members_sort_post, new_members_post_action) }}
+            <th scope="col" class="actions-cell"><span class="visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for member in rows %}
+          <tr>
+            <td>{{ member.last_name }}, {{ member.first_name }}</td>
+            <td>{% if member.call_sign %}{{ member.call_sign }}{% else %}—{% endif %}</td>
+            <td>{% if member.license_class %}{{ member.license_class }}{% else %}—{% endif %}</td>
+            <td>{% if member.membership_type %}{{ member.membership_type }}{% else %}—{% endif %}</td>
+            <td>{% if member.city %}{{ member.city }}{% else %}—{% endif %}</td>
+            <td>{% if member.state %}{{ member.state }}{% else %}—{% endif %}</td>
+            <td>{% if member.date_paid %}{{ member.date_paid }}{% else %}—{% endif %}</td>
+            <td>{% if member.paid_through %}{{ member.paid_through }}{% else %}—{% endif %}</td>
+            <td><a href="{{ url_for('/members/' ~ member.id ~ '/view') }}">View</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

@@ -14,6 +14,7 @@ MEMBERS_KEY = "dvra_members_last_export_query_input"
 PAYMENTS_KEY = "dvra_payments_report_filters"
 KEYHOLDERS_KEY = "dvra_keyholders_report_sort"
 ROSTER_KEY = "dvra_roster_report_membership_year"
+NEW_MEMBERS_KEY = "dvra_new_members_report"
 
 
 def members_persist(session: dict[str, Any], parsed: dict[str, Any]) -> None:
@@ -89,3 +90,19 @@ def roster_merge_post_year(session: dict[str, Any], body: dict[str, Any], fallba
     year = myear.parse_year_input(flat.get("membership_year"), fallback) or fallback
     roster_persist_year(session, year)
     return year
+
+
+def new_members_persist(session: dict[str, Any], parsed: dict[str, str]) -> None:
+    session_query.write(
+        session,
+        NEW_MEMBERS_KEY,
+        {"since": parsed["since"], "sort_by": parsed["sort_by"], "sort_dir": parsed["sort_dir"]},
+    )
+
+
+def new_members_read(session: dict[str, Any]) -> dict[str, Any]:
+    return session_query.read(session, NEW_MEMBERS_KEY)
+
+
+def new_members_merge_post(session: dict[str, Any], body: dict[str, Any]) -> dict[str, Any]:
+    return session_query.merge_post(session, NEW_MEMBERS_KEY, body, None)
