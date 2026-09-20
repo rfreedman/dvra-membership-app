@@ -7,6 +7,7 @@ import sqlite3
 from datetime import date
 from typing import Any
 
+from dvra import family
 from dvra import membership_year as myear
 from dvra import new_ham
 
@@ -55,14 +56,16 @@ def extended_paid_through_iso(membership_year: int) -> str:
 
 
 def sql_exists_payment_current_for_year(payment_alias: str = "pay") -> str:
-    """SQL fragment: member m is current for membership year bound as two ? params (same Y)."""
+    """SQL fragment: member m is current for membership year bound as two ? params (same Y).
+
+    Own payment or a linked family primary's matching payment.
+    """
     a = payment_alias
-    return f"""EXISTS (
-        SELECT 1 FROM payments {a}
-        WHERE {a}.member_id = m.id
-        AND {a}.membership_year <= ?
+    predicate = f"""
+        {a}.membership_year <= ?
         AND date({a}.paid_through) >= date(printf('%04d-12-31', ?))
-    )"""
+    """
+    return family.sql_exists_own_or_family_payment(a, predicate)
 
 
 def _extension_note(

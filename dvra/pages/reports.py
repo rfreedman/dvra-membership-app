@@ -264,6 +264,7 @@ def _year_memberships_sort_post(params: dict[str, Any]) -> dict[str, dict[str, s
         "call_sign",
         "license_class",
         "membership_type",
+        "covered_by",
         "city",
         "state",
         "date_paid",

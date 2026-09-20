@@ -40,7 +40,7 @@
             {% endfor %}
           </select>
         </label>
-        <label>Search <input type="text" name="search" value="{{ search }}" placeholder="Name, call sign, email"></label>
+        <label>Search <input type="text" name="search" value="{{ search }}" placeholder="Name, call sign, email, nickname"></label>
         <label>Membership type
           <select name="membership_type_id">
             <option value=""{% if membership_type_id is none %} selected{% endif %}>Any</option>

@@ -6,6 +6,7 @@ import json
 import sqlite3
 from typing import Any
 
+from dvra import family
 from dvra import join_extension
 from dvra import membership_year as myear
 from dvra.reference_data import ReferenceDataRepository
@@ -19,8 +20,10 @@ DATE_PAID_SUBQUERY = """(SELECT p.payment_date FROM payments p
 SORT_FIELDS = [
     "last_name",
     "first_name",
+    "nickname",
     "call_sign",
     "email",
+    "qrz_email",
     "phone",
     "address_street",
     "address_city",
@@ -28,6 +31,7 @@ SORT_FIELDS = [
     "address_zip",
     "license_class",
     "membership_type",
+    "covered_by",
     "arrl_member",
     "date_paid",
     "paid_through",
@@ -95,16 +99,19 @@ def _order_by_sql(sort_by: str, sort_dir: str) -> str:
     mapping = {
         "last_name": f"m.last_name {direction}{tail}",
         "first_name": f"m.first_name {direction}{tail}",
+        "nickname": f"(m.nickname) IS NULL, m.nickname {direction}{tail}",
         "call_sign": f"(m.call_sign) IS NULL, m.call_sign {direction}{tail}",
         "email": f"(m.email) IS NULL, m.email {direction}{tail}",
+        "qrz_email": f"(m.qrz_email) IS NULL, m.qrz_email {direction}{tail}",
         "phone": f"(m.phone) IS NULL, m.phone {direction}{tail}",
         "address_street": f"(m.address_street) IS NULL, m.address_street {direction}{tail}",
         "address_city": f"(m.address_city) IS NULL, m.address_city {direction}{tail}",
         "address_state": f"(m.address_state) IS NULL, m.address_state {direction}{tail}",
         "address_zip": f"(m.address_zip) IS NULL, m.address_zip {direction}{tail}",
         "date_paid": f"(date_paid) IS NULL, date_paid {direction}{tail}",
-        "paid_through": f"(m.paid_through) IS NULL, m.paid_through {direction}{tail}",
+        "paid_through": f"(paid_through) IS NULL, paid_through {direction}{tail}",
         "membership_type": f"(mt.name) IS NULL, mt.name {direction}{tail}",
+        "covered_by": f"(covered_by) IS NULL, covered_by {direction}{tail}",
         "license_class": f"(lc.name) IS NULL, lc.name {direction}{tail}",
         "arrl_member": f"m.arrl_member {direction}{tail}",
     }
@@ -122,6 +129,8 @@ def _filter_clause(f: dict[str, Any]) -> tuple[str, list[Any]]:
             "COALESCE(m.first_name, '')",
             "COALESCE(m.call_sign, '')",
             "COALESCE(m.email, '')",
+            "COALESCE(m.nickname, '')",
+            "COALESCE(m.qrz_email, '')",
         ]
         sub = []
         for expr in like_cols:
@@ -181,6 +190,8 @@ class MemberListRepository:
                    m.first_name AS first_name,
                    m.call_sign AS call_sign,
                    m.email AS email,
+                   m.nickname AS nickname,
+                   m.qrz_email AS qrz_email,
                    m.phone AS phone,
                    m.address_street AS address_street,
                    m.address_city AS address_city,
@@ -188,12 +199,14 @@ class MemberListRepository:
                    m.address_zip AS address_zip,
                    m.arrl_member AS arrl_member,
                    m.key_number AS key_number,
-                   {DATE_PAID_SUBQUERY} AS date_paid,
-                   m.paid_through AS paid_through,
+                   {family.EFFECTIVE_DATE_PAID_SQL} AS date_paid,
+                   {family.EFFECTIVE_PAID_THROUGH_SQL} AS paid_through,
+                   {family.COVERED_BY_SQL} AS covered_by,
                    (m.notes IS NOT NULL AND TRIM(m.notes) <> '') AS has_note,
                    lc.name AS lc_name,
                    mt.name AS mt_name
             FROM members m
+            LEFT JOIN members prim ON prim.id = m.family_primary_member_id
             LEFT JOIN license_classes lc ON m.license_class_id = lc.id
             LEFT JOIN membership_types mt ON m.membership_type_id = mt.id
             WHERE {where}
@@ -209,7 +222,9 @@ class MemberListRepository:
             "call_sign": call.upper().strip(),
             "last_name": str(r["last_name"] or ""),
             "first_name": str(r["first_name"] or ""),
+            "nickname": str(r["nickname"] or ""),
             "email": str(r["email"] or ""),
+            "qrz_email": str(r["qrz_email"] or ""),
             "phone": str(r["phone"] or ""),
             "address_street": str(r["address_street"] or ""),
             "address_city": str(r["address_city"] or ""),
@@ -217,6 +232,7 @@ class MemberListRepository:
             "address_zip": str(r["address_zip"] or ""),
             "license_class": str(r["lc_name"] or "").strip(),
             "membership_type": str(r["mt_name"] or "").strip(),
+            "covered_by": str(r["covered_by"] or "").strip(),
             "arrl_member": bool(r["arrl_member"]),
             "key_number": int(r["key_number"]) if r["key_number"] is not None else None,
             "date_paid": str(r["date_paid"] or ""),

@@ -6,6 +6,7 @@ import sqlite3
 from datetime import date, datetime
 from typing import Any
 
+from dvra import family
 from dvra import join_extension
 from dvra import membership_year as myear
 from dvra.member_list import DATE_PAID_SUBQUERY
@@ -17,6 +18,7 @@ NEW_MEMBERS_SORT_FIELDS = [
     "call_sign",
     "license_class",
     "membership_type",
+    "covered_by",
     "city",
     "state",
     "date_paid",
@@ -91,21 +93,17 @@ def parse_year_memberships_query(qp: dict[str, Any], fallback_year: int) -> dict
 
 
 def sql_exists_paid_through_on(alias: str = "p") -> str:
-    return f"""EXISTS (
-        SELECT 1 FROM payments {alias}
-        WHERE {alias}.member_id = m.id
-          AND date({alias}.paid_through) = date(?)
-    )"""
+    predicate = f"date({alias}.paid_through) = date(?)"
+    return family.sql_exists_own_or_family_payment(alias, predicate)
 
 
 def sql_exists_paid_for_membership_year(alias: str = "p") -> str:
     """Payment covers Y-12-31 and membership_year is Y or Y-1 (late-join extension)."""
-    return f"""EXISTS (
-        SELECT 1 FROM payments {alias}
-        WHERE {alias}.member_id = m.id
-          AND {alias}.membership_year IN (?, ?)
-          AND date({alias}.paid_through) >= date(?)
-    )"""
+    predicate = f"""
+        {alias}.membership_year IN (?, ?)
+        AND date({alias}.paid_through) >= date(?)
+    """
+    return family.sql_exists_own_or_family_payment(alias, predicate)
 
 
 _MEMBER_DETAIL_SELECT = f"""
@@ -117,9 +115,11 @@ _MEMBER_DETAIL_SELECT = f"""
                    m.address_state AS address_state,
                    lc.name AS license_class,
                    mt.name AS membership_type,
-                   {DATE_PAID_SUBQUERY} AS date_paid,
-                   m.paid_through AS paid_through
+                   {family.EFFECTIVE_DATE_PAID_SQL} AS date_paid,
+                   {family.EFFECTIVE_PAID_THROUGH_SQL} AS paid_through,
+                   {family.COVERED_BY_SQL} AS covered_by
             FROM members m
+            LEFT JOIN members prim ON prim.id = m.family_primary_member_id
             LEFT JOIN license_classes lc ON m.license_class_id = lc.id
             LEFT JOIN membership_types mt ON m.membership_type_id = mt.id
 """
@@ -134,14 +134,16 @@ def _new_members_order_by(sort_by: str, sort_dir: str) -> str:
         return f"(lc.name) IS NULL, lc.name {d}, {tie}"
     if sort_by == "membership_type":
         return f"(mt.name) IS NULL, mt.name {d}, {tie}"
+    if sort_by == "covered_by":
+        return f"(covered_by) IS NULL, covered_by {d}, {tie}"
     if sort_by == "city":
         return f"(m.address_city) IS NULL, m.address_city {d}, {tie}"
     if sort_by == "state":
         return f"(m.address_state) IS NULL, m.address_state {d}, {tie}"
     if sort_by == "date_paid":
-        return f"({DATE_PAID_SUBQUERY}) IS NULL, {DATE_PAID_SUBQUERY} {d}, {tie}"
+        return f"({family.EFFECTIVE_DATE_PAID_SQL}) IS NULL, {family.EFFECTIVE_DATE_PAID_SQL} {d}, {tie}"
     if sort_by == "paid_through":
-        return f"(m.paid_through) IS NULL, m.paid_through {d}, {tie}"
+        return f"({family.EFFECTIVE_PAID_THROUGH_SQL}) IS NULL, {family.EFFECTIVE_PAID_THROUGH_SQL} {d}, {tie}"
     return f"m.last_name {d}, m.first_name {d}, m.id ASC"
 
 
@@ -278,6 +280,7 @@ class ReportsRepository:
                     "call_sign": cs,
                     "license_class": str(r["license_class"] or "").strip(),
                     "membership_type": str(r["membership_type"] or "").strip(),
+                    "covered_by": str(r["covered_by"] or "").strip(),
                     "city": str(r["address_city"] or ""),
                     "state": str(r["address_state"] or ""),
                     "date_paid": str(r["date_paid"] or ""),

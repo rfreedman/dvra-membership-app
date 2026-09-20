@@ -207,6 +207,13 @@
         width: 161,
       },
       {
+        title: "Nickname",
+        field: "nickname",
+        sorter: "string",
+        width: 120,
+        formatter: (cell) => (cell.getValue() ? cell.getValue() : dash),
+      },
+      {
         title: "Date paid",
         field: "date_paid",
         sorter: "string",
@@ -227,6 +234,13 @@
         field: "email",
         sorter: "string",
         width: 230,
+      },
+      {
+        title: "QRZ email",
+        field: "qrz_email",
+        sorter: "string",
+        width: 230,
+        formatter: (cell) => (cell.getValue() ? cell.getValue() : dash),
       },
       {
         title: "Phone",
@@ -279,6 +293,14 @@
         sorter: "string",
         width: 176,
         cssClass: "members-col-ref-data",
+      },
+      {
+        title: "Covered by",
+        field: "covered_by",
+        sorter: "string",
+        width: 200,
+        cssClass: "members-col-ref-data",
+        formatter: (cell) => (cell.getValue() ? cell.getValue() : dash),
       },
       {
         title: "ARRL",

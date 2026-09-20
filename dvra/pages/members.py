@@ -20,7 +20,7 @@ from dvra import view
 from dvra.app_settings import AppSettingsRepository
 from dvra.context import RequestCtx
 from dvra.member_list import MemberListRepository
-from dvra.members import DuplicateMemberKeyNumber, MemberRepository
+from dvra.members import DuplicateMemberKeyNumber, MemberHasFamilySecondaries, MemberRepository
 from dvra.pages.common import download_export, html_page, member_not_found
 from dvra.payments import PaymentRepository
 from dvra.reference_data import find_default_membership_type_id
@@ -37,11 +37,12 @@ def _new_member_join_date() -> date:
     return date.today()
 
 
-def _member_ref(ctx: RequestCtx) -> dict[str, Any]:
+def _member_ref(ctx: RequestCtx, exclude_member_id: int | None = None) -> dict[str, Any]:
     repo = MemberRepository(ctx["conn"])
     return {
         "license_classes": repo.list_license_classes(),
         "membership_types": repo.list_membership_types(),
+        "family_primary_options": repo.list_family_primary_options(exclude_member_id),
         "new_ham_type_id": new_ham.find_type_id(ctx["conn"]),
         "new_ham_convert_confirm": new_ham.NEW_HAM_CONVERT_CONFIRM,
         "unlicensed_license_class_id": find_unlicensed_class_id(ctx["conn"]),
@@ -50,7 +51,7 @@ def _member_ref(ctx: RequestCtx) -> dict[str, Any]:
 
 def _member_detail_template_ctx(ctx: RequestCtx, member: dict[str, Any]) -> dict[str, Any]:
     return {
-        **_member_ref(ctx),
+        **_member_ref(ctx, member.get("id")),
         "call_sign_disabled": is_unlicensed_license_class_id(
             ctx["conn"], member.get("license_class_id")
         ),
@@ -200,7 +201,7 @@ def handle_member_new_post(ctx: RequestCtx) -> htt.Response:
         return html_page(inner, "New member", ctx, active_nav="members", extra_scripts=scripts, status=status)
 
     val_err = member_form_validation.validate_member_row(
-        ctx["conn"], row, body, require_paid_year=True, paid_year=paid_year
+        ctx["conn"], row, body, require_paid_year=True, paid_year=paid_year, member_id=None
     )
     if val_err:
         return fail(val_err, 400)
@@ -272,7 +273,7 @@ def handle_member_edit(ctx: RequestCtx, id_: int) -> htt.Response:
         return html_page(inner, "Member", ctx, extra_scripts=scripts, status=status, active_nav="members")
 
     val_err = member_form_validation.validate_member_row(
-        ctx["conn"], row, ctx["form"], require_paid_year=False, paid_year=None
+        ctx["conn"], row, ctx["form"], require_paid_year=False, paid_year=None, member_id=id_
     )
     if val_err:
         return fail(val_err, 400)
@@ -292,8 +293,24 @@ def handle_member_edit(ctx: RequestCtx, id_: int) -> htt.Response:
 
 
 def handle_member_delete(ctx: RequestCtx, id_: int) -> htt.Response:
-    if id_ > 0:
-        MemberRepository(ctx["conn"]).delete_member_by_id(id_)
+    members_repo = MemberRepository(ctx["conn"])
+    if id_ <= 0:
+        return htt.redirect(htt.url_for("/"))
+    try:
+        members_repo.delete_member_by_id(id_)
+    except MemberHasFamilySecondaries as exc:
+        member = members_repo.find_member_by_id(id_)
+        if member is None:
+            return htt.redirect(htt.url_for("/"))
+        scripts = view.render("member_detail_scripts.html")
+        inner = view.render(
+            "member_detail.html",
+            member=member,
+            error=str(exc),
+            base=htt.app_base(),
+            **_member_detail_template_ctx(ctx, member),
+        )
+        return html_page(inner, "Member", ctx, extra_scripts=scripts, status=400, active_nav="members")
     return htt.redirect(htt.url_for("/"))
 
 
@@ -420,8 +437,6 @@ def handle_member_payments(ctx: RequestCtx, id_: int) -> htt.Response:
     flash = ctx["session"].pop("dvra_flash_payment_error", None)
     rollover = ctx["session"].pop("dvra_flash_payment_rollover", None)
     payments = members_repo.list_payments_for_member(id_)
-    for p in payments:
-        p.pop("membership_type_display", None)
     default_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
     inner = view.render(
         "member_payments.html",

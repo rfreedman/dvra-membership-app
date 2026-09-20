@@ -86,7 +86,16 @@
       </thead>
       <tbody>
         {% for payment in payments %}
-        <tr>
+        <tr{% if payment.inherited %} class="payment-inherited-row"{% endif %}>
+          {% if payment.inherited %}
+          <td>{{ payment.payment_date }}</td>
+          <td>{{ payment.membership_year }}</td>
+          <td>{{ payment.paid_through }}</td>
+          <td>{% if payment.membership_type_display %}{{ payment.membership_type_display }}{% else %}—{% endif %}</td>
+          <td>{% if payment.form_number %}{{ payment.form_number }}{% else %}—{% endif %}</td>
+          <td class="payment-notes-cell">{{ payment.notes }}</td>
+          <td></td>
+          {% else %}
           <td>
             <input class="payment-row-input" form="payment-row-{{ payment.id }}" name="payment_date" type="date" value="{{ payment.payment_date }}" required>
           </td>
@@ -121,6 +130,7 @@
               <button type="submit" class="btn-danger">Delete</button>
             </form>
           </td>
+          {% endif %}
         </tr>
         {% endfor %}
       </tbody>

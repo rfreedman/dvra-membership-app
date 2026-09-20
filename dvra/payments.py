@@ -98,10 +98,17 @@ class PaymentRepository:
             )
             self.sync_member_paid_through_from_payments(member_id)
             self.sync_member_membership_type_from_payments(member_id)
+            self._remove_covered_secondary_payments(member_id)
             self.conn.commit()
         except Exception:
             self.conn.rollback()
             raise
+
+    def _remove_covered_secondary_payments(self, member_id: int) -> None:
+        from dvra.family import delete_secondary_payments_covered_by_primary
+
+        for sid in delete_secondary_payments_covered_by_primary(self.conn, member_id):
+            self.sync_member_paid_through_from_payments(sid)
 
     def update_payment(self, payment_id: int, data: dict[str, Any]) -> int | None:
         meta = self.find_payment_meta(payment_id)
@@ -129,6 +136,7 @@ class PaymentRepository:
             )
             self.sync_member_paid_through_from_payments(member_id)
             self.sync_member_membership_type_from_payments(member_id)
+            self._remove_covered_secondary_payments(member_id)
             self.conn.commit()
             return member_id
         except Exception:

@@ -33,6 +33,7 @@
             {{ sortable_th('call_sign', 'Call sign', sort_by, sort_dir, sort_post, post_action) }}
             {{ sortable_th('license_class', 'License type', sort_by, sort_dir, sort_post, post_action) }}
             {{ sortable_th('membership_type', 'Membership type', sort_by, sort_dir, sort_post, post_action) }}
+            {{ sortable_th('covered_by', 'Covered by', sort_by, sort_dir, sort_post, post_action) }}
             {{ sortable_th('city', 'City', sort_by, sort_dir, sort_post, post_action) }}
             {{ sortable_th('state', 'State', sort_by, sort_dir, sort_post, post_action) }}
             {{ sortable_th('date_paid', 'Date paid', sort_by, sort_dir, sort_post, post_action) }}
@@ -47,6 +48,7 @@
             <td>{% if member.call_sign %}{{ member.call_sign }}{% else %}—{% endif %}</td>
             <td>{% if member.license_class %}{{ member.license_class }}{% else %}—{% endif %}</td>
             <td>{% if member.membership_type %}{{ member.membership_type }}{% else %}—{% endif %}</td>
+            <td>{% if member.covered_by %}{{ member.covered_by }}{% else %}—{% endif %}</td>
             <td>{% if member.city %}{{ member.city }}{% else %}—{% endif %}</td>
             <td>{% if member.state %}{{ member.state }}{% else %}—{% endif %}</td>
             <td>{% if member.date_paid %}{{ member.date_paid }}{% else %}—{% endif %}</td>

@@ -29,6 +29,14 @@
       <input id="new-email" class="member-form-control" name="email" type="email" required autocomplete="email" value="{{ form_values.get('email', '') }}">
     </div>
     <div class="member-form-field">
+      <label for="new-nickname">Nickname</label>
+      <input id="new-nickname" class="member-form-control" name="nickname" autocomplete="nickname" placeholder="optional" value="{{ form_values.get('nickname', '') }}">
+    </div>
+    <div class="member-form-field">
+      <label for="new-qrz-email">QRZ email</label>
+      <input id="new-qrz-email" class="member-form-control" name="qrz_email" type="email" autocomplete="off" placeholder="optional" value="{{ form_values.get('qrz_email', '') }}">
+    </div>
+    <div class="member-form-field">
       <label for="new-phone">Phone</label>
       <input id="new-phone" class="member-form-control" name="phone" required autocomplete="tel" value="{{ form_values.get('phone', '') }}">
     </div>
@@ -58,6 +66,15 @@
       <select id="new-membership" class="member-form-control" name="membership_type" required>
         {% for item in membership_types %}
         <option value="{{ item.id }}"{% if (form_values.get('membership_type') or (selected_membership_type_id|string if selected_membership_type_id is not none else '')) == (item.id|string) %} selected{% endif %}>{{ (item.name or '')|trim }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="member-form-field">
+      <label for="new-covered-by">Covered by family member</label>
+      <select id="new-covered-by" class="member-form-control" name="family_primary_member_id">
+        <option value="">—</option>
+        {% for item in family_primary_options %}
+        <option value="{{ item.id }}"{% if form_values.get('family_primary_member_id', '') == (item.id|string) %} selected{% endif %}>{{ item.label }}</option>
         {% endfor %}
       </select>
     </div>

@@ -655,6 +655,10 @@ h2 {
   vertical-align: top;
 }
 
+.payment-inherited-row td {
+  color: var(--color-muted);
+}
+
 .payment-notes-input {
   width: 100%;
   min-width: 10rem;

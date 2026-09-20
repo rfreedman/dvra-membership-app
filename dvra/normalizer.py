@@ -6,6 +6,7 @@ import re
 from datetime import datetime
 from typing import Any
 
+from dvra import family
 from dvra import membership_year as myear
 
 
@@ -66,11 +67,14 @@ def member_create_from_form(body: dict[str, Any], paid_through: str | None) -> d
     key_raw = _form_str(body, "key_number").strip()
     lic = _form_str(body, "license_class").strip()
     mt = _form_str(body, "membership_type").strip()
+    qrz = strip_optional(_form_str(body, "qrz_email"))
     return {
         "last_name": _form_str(body, "last_name").strip(),
         "first_name": _form_str(body, "first_name").strip(),
         "call_sign": normalize_call_sign(_form_str(body, "call_sign")),
         "email": strip_optional(_form_str(body, "email")),
+        "nickname": strip_optional(_form_str(body, "nickname")),
+        "qrz_email": qrz.lower() if qrz else None,
         "phone": normalize_phone_us_ten_digit(_form_str(body, "phone")),
         "address_street": strip_optional(_form_str(body, "address_street")),
         "address_city": strip_optional(_form_str(body, "address_city")),
@@ -78,6 +82,7 @@ def member_create_from_form(body: dict[str, Any], paid_through: str | None) -> d
         "address_zip": normalize_zip(_form_str(body, "address_zip")),
         "license_class_id": int(lic) if lic.isdigit() else None,
         "membership_type_id": int(mt) if mt.isdigit() else None,
+        "family_primary_member_id": family.parse_family_primary_member_id(body.get("family_primary_member_id")),
         "arrl_member": _form_str(body, "arrl_member") == "yes",
         "key_number": int(key_raw) if key_raw.isdigit() else None,
         "paid_through": paid_through,

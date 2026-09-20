@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+from dvra import family
 from dvra import normalizer
 from dvra.license_class import find_unlicensed_class_id
 
@@ -29,6 +30,7 @@ def validate_member_row(
     *,
     require_paid_year: bool,
     paid_year: int | None,
+    member_id: int | None = None,
 ) -> str | None:
     apply_unlicensed_call_sign(conn, row)
 
@@ -66,5 +68,9 @@ def validate_member_row(
 
     if require_paid_year and paid_year is None:
         return "Paid for year is required."
+
+    family_err = family.validate_family_primary(conn, member_id, row.get("family_primary_member_id"))
+    if family_err:
+        return family_err
 
     return None

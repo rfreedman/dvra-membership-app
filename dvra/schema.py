@@ -15,7 +15,7 @@ from dvra.new_ham import NEW_HAM_TYPE_NAME
 from dvra.paths import SCHEMA_PATH
 
 # Bump when schema.sql or migrate_* logic changes so ensure() re-runs.
-SCHEMA_USER_VERSION = 7
+SCHEMA_USER_VERSION = 11
 
 
 def ensure(conn: sqlite3.Connection) -> None:
@@ -31,9 +31,13 @@ def ensure(conn: sqlite3.Connection) -> None:
     migrate_drop_license_and_membership_labels(conn)
     migrate_app_settings_and_payment_membership_year(conn)
     migrate_member_notes(conn)
+    migrate_member_nickname_and_qrz_email(conn)
     migrate_seed_new_ham_membership_type(conn)
     migrate_join_extension_settings(conn)
     migrate_remove_regular_membership_type(conn)
+    migrate_member_family_primary(conn)
+    migrate_roster_family_links_and_new_ham(conn)
+    migrate_delete_secondary_payments_covered_by_primary(conn)
     conn.execute(f"PRAGMA user_version = {SCHEMA_USER_VERSION}")
     conn.commit()
 
@@ -88,6 +92,13 @@ def migrate_member_notes(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE members ADD COLUMN notes TEXT")
 
 
+def migrate_member_nickname_and_qrz_email(conn: sqlite3.Connection) -> None:
+    if not sqlite_table_has_column(conn, "members", "nickname"):
+        conn.execute("ALTER TABLE members ADD COLUMN nickname TEXT")
+    if not sqlite_table_has_column(conn, "members", "qrz_email"):
+        conn.execute("ALTER TABLE members ADD COLUMN qrz_email VARCHAR(320)")
+
+
 def migrate_join_extension_settings(conn: sqlite3.Connection) -> None:
     defaults = (
         (KEY_NEW_MEMBER_EXTENSION_START, DEFAULT_NEW_MEMBER_EXTENSION_START),
@@ -126,6 +137,70 @@ def migrate_remove_regular_membership_type(conn: sqlite3.Connection) -> None:
             (individual_id, regular_id),
         )
     conn.execute("DELETE FROM membership_types WHERE id = ?", (regular_id,))
+
+
+def migrate_member_family_primary(conn: sqlite3.Connection) -> None:
+    if not sqlite_table_has_column(conn, "members", "family_primary_member_id"):
+        conn.execute(
+            "ALTER TABLE members ADD COLUMN family_primary_member_id INTEGER REFERENCES members(id)"
+        )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS ix_members_family_primary_member_id ON members (family_primary_member_id)"
+    )
+
+
+def migrate_delete_secondary_payments_covered_by_primary(conn: sqlite3.Connection) -> None:
+    from dvra.family import delete_secondary_payments_covered_by_primary
+    from dvra.payments import PaymentRepository
+
+    secondary_ids = delete_secondary_payments_covered_by_primary(conn)
+    pay = PaymentRepository(conn)
+    for member_id in secondary_ids:
+        pay.sync_member_paid_through_from_payments(member_id)
+
+
+def migrate_roster_family_links_and_new_ham(conn: sqlite3.Connection) -> None:
+    from dvra.family import MASON_SHARMA_CALL, NEW_HAM_APPROXIMATE_NOTE, apply_roster_family_links
+
+    apply_roster_family_links(conn)
+
+    nh = conn.execute(
+        "SELECT id FROM membership_types WHERE name = ? LIMIT 1",
+        (NEW_HAM_TYPE_NAME,),
+    ).fetchone()
+    if nh is None:
+        return
+    nh_id = int(nh[0])
+    member = conn.execute(
+        "SELECT id, paid_through FROM members WHERE upper(call_sign) = upper(?) LIMIT 1",
+        (MASON_SHARMA_CALL,),
+    ).fetchone()
+    if member is None:
+        return
+    member_id = int(member[0])
+    conn.execute(
+        "UPDATE members SET membership_type_id = ? WHERE id = ?",
+        (nh_id, member_id),
+    )
+    has_2026 = conn.execute(
+        "SELECT 1 FROM payments WHERE member_id = ? AND membership_year = 2026 LIMIT 1",
+        (member_id,),
+    ).fetchone()
+    if has_2026 is None:
+        conn.execute(
+            """
+            INSERT INTO payments (
+                member_id, payment_date, paid_through, membership_year,
+                membership_type_id, notes, form_number, created_at
+            ) VALUES (?, '2026-01-01', '2026-12-31', 2026, ?, ?, NULL, CURRENT_TIMESTAMP)
+            """,
+            (member_id, nh_id, NEW_HAM_APPROXIMATE_NOTE),
+        )
+        if member["paid_through"] in (None, ""):
+            conn.execute(
+                "UPDATE members SET paid_through = '2026-12-31' WHERE id = ?",
+                (member_id,),
+            )
 
 
 def migrate_seed_new_ham_membership_type(conn: sqlite3.Connection) -> None:

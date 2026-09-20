@@ -63,6 +63,8 @@ class Member(Base):
     first_name: Mapped[str] = mapped_column(String(128), nullable=False)
     call_sign: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)
+    nickname: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    qrz_email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     #: Mailing address from roster column **O** / forms; split via ``parse_roster_us_address`` on import & paste-friendly entry.
     address_street: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -71,6 +73,7 @@ class Member(Base):
     address_zip: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
     license_class_id: Mapped[Optional[int]] = mapped_column(ForeignKey("license_classes.id"), nullable=True)
     membership_type_id: Mapped[Optional[int]] = mapped_column(ForeignKey("membership_types.id"), nullable=True)
+    family_primary_member_id: Mapped[Optional[int]] = mapped_column(ForeignKey("members.id"), nullable=True)
     arrl_member: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     key_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     paid_through: Mapped[Optional[date]] = mapped_column(Date, nullable=True)

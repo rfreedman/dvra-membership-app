@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import sqlite3
 import sys
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -19,7 +20,7 @@ from typing import Optional
 from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 
-from sqlalchemy import create_engine, delete, select
+from sqlalchemy import create_engine, delete, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 _ROOT = Path(__file__).resolve().parents[1]
@@ -56,10 +57,12 @@ class SpreadsheetRow:
     address_city: Optional[str] = None
     address_state: Optional[str] = None
     address_zip: Optional[str] = None
+    nickname: Optional[str] = None
+    qrz_email: Optional[str] = None
     #: Excel worksheet row index when read from roster layout (optional; for previews / tooling).
     source_excel_row: Optional[int] = None
-    #: Roster layout only: ``(payment_date, paid_through_dec31, raw_cell_text)`` per year column D/F/H that parsed.
-    roster_historical_payments: Optional[tuple[tuple[date, date, str], ...]] = None
+    #: Roster layout only: ``(payment_date, paid_through_dec31, notes, form_number)`` per non-empty D/F/H cell.
+    roster_historical_payments: Optional[tuple[tuple[date, date, Optional[str], Optional[str]], ...]] = None
 
 
 def parse_args() -> argparse.Namespace:
@@ -233,8 +236,7 @@ def canonical_membership_name(raw: str) -> str:
     key = stripped.lower()
     if key in _MEMBERSHIP_IMPORT_ALIASES:
         return _MEMBERSHIP_IMPORT_ALIASES[key]
-    t = title_case_import_field_if_all_caps(stripped)
-    return t if t is not None else stripped
+    return _title_name_part(stripped)
 
 
 def read_spreadsheet_rows(path: str) -> list[SpreadsheetRow]:
@@ -274,11 +276,15 @@ def _read_roster_membership_rows(xml_rows: list[ET.Element], shared_strings: lis
             )
             continue
         last_name, first_name, call_sign = parsed_name
-        membership_type = title_case_import_field_if_all_caps(_none_if_blank(cells.get("B", "")))
+        membership_type = _none_if_blank(cells.get("B", ""))
+        if membership_type:
+            membership_type = canonical_membership_name(membership_type)
         hist = _roster_payment_entries_from_cells(cells)
         member_paid_through = max((h[1] for h in hist), default=None)
         email = _roster_email_from_cells(cells)
         phone = _none_if_blank(cells.get("K", ""))
+        nickname = _nickname_from_cell(cells.get("J", ""))
+        qrz_email = _qrz_email_from_cell(cells.get("M", ""))
         license_raw = _none_if_blank(cells.get("N", ""))
         license_class = _map_license_class_name(license_raw)
         arrl_member = _parse_bool_cell(cells.get("P", ""))
@@ -306,6 +312,8 @@ def _read_roster_membership_rows(xml_rows: list[ET.Element], shared_strings: lis
                 address_city=adr_city,
                 address_state=adr_stt,
                 address_zip=adr_zip,
+                nickname=nickname,
+                qrz_email=qrz_email,
                 roster_historical_payments=tuple(hist) if hist else None,
                 source_excel_row=excel_row,
             )
@@ -353,18 +361,61 @@ def _parse_roster_name_cell(s: str) -> Optional[tuple[str, str, Optional[str]]]:
     return (last_name, first_part, None)
 
 
+_MONTH_NAME_TO_NUM: dict[str, int] = {
+    "january": 1,
+    "jan": 1,
+    "february": 2,
+    "feb": 2,
+    "march": 3,
+    "mar": 3,
+    "april": 4,
+    "apr": 4,
+    "may": 5,
+    "june": 6,
+    "jun": 6,
+    "july": 7,
+    "jul": 7,
+    "august": 8,
+    "aug": 8,
+    "september": 9,
+    "sept": 9,
+    "sep": 9,
+    "october": 10,
+    "oct": 10,
+    "november": 11,
+    "nov": 11,
+    "december": 12,
+    "dec": 12,
+}
+
+_FULL_DATE_MDY4 = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{4})")
+_FULL_DATE_MDY2 = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{2})(?!\d)")
+_ISO_DATE = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
+_MONTH_YEAR_NUM = re.compile(r"(?<!\d/)(\d{1,2})/(\d{4})")
+_MONTH_YEAR_NAME = re.compile(
+    r"(january|february|march|april|june|july|august|september|october|november|december|"
+    r"jan|feb|mar|apr|may|jun|jul|aug|sept|sep|oct|nov|dec)\.?\s+(\d{4})",
+    re.IGNORECASE,
+)
+_MONTH_DAY = re.compile(r"(?<!\d)(\d{1,2})/(\d{1,2})(?!\d)(?!/\d)")
+_APPROXIMATE_NOTE = "payment date approximate"
+
+
+def _safe_calendar_date(year: int, month: int, day: int) -> Optional[date]:
+    if not (1990 <= year <= 2100):
+        return None
+    try:
+        return date(year, month, day)
+    except ValueError:
+        return None
+
+
 def _parse_us_or_iso_date_cell(value: str) -> Optional[date]:
     text = (value or "").strip()
     if not text or text.lower() in _EXCEL_ERR_TOKENS:
         return None
-    m = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", text)
-    if m:
-        month, day, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        return date(year, month, day)
-    try:
-        return _parse_iso_date(text)
-    except ValueError:
-        return None
+    parsed = _first_full_date_in_text(text)
+    return parsed[0] if parsed else None
 
 
 def _excel_serial_to_date(serial: float) -> Optional[date]:
@@ -388,21 +439,54 @@ def _excel_serial_to_date(serial: float) -> Optional[date]:
     return None
 
 
-def _parse_roster_payment_date_from_note(raw: str) -> Optional[date]:
-    """First payment date from a roster payment note (US date, ISO, or Excel serial as float string)."""
-    raw_st = (raw or "").strip()
-    if not raw_st or raw_st.lower() in _EXCEL_ERR_TOKENS:
-        return None
-    m = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", raw_st)
+def _first_full_date_in_text(text: str) -> Optional[tuple[date, str]]:
+    m = _FULL_DATE_MDY4.search(text)
     if m:
-        month, day, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        return date(year, month, day)
+        parsed = _safe_calendar_date(int(m.group(3)), int(m.group(1)), int(m.group(2)))
+        if parsed is not None:
+            return parsed, m.group(0)
+    m = _ISO_DATE.search(text)
+    if m:
+        parsed = _safe_calendar_date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        if parsed is not None:
+            return parsed, m.group(0)
+    m = _FULL_DATE_MDY2.search(text)
+    if m:
+        parsed = _safe_calendar_date(2000 + int(m.group(3)), int(m.group(1)), int(m.group(2)))
+        if parsed is not None:
+            return parsed, m.group(0)
+    return None
+
+
+def _first_month_year_in_text(text: str) -> Optional[tuple[date, str]]:
+    m = _MONTH_YEAR_NUM.search(text)
+    if m:
+        parsed = _safe_calendar_date(int(m.group(2)), int(m.group(1)), 1)
+        if parsed is not None:
+            return parsed, m.group(0)
+    m = _MONTH_YEAR_NAME.search(text)
+    if m:
+        month = _MONTH_NAME_TO_NUM.get(m.group(1).lower().rstrip("."))
+        if month is not None:
+            parsed = _safe_calendar_date(int(m.group(2)), month, 1)
+            if parsed is not None:
+                return parsed, m.group(0)
+    return None
+
+
+def _first_month_day_in_text(text: str, membership_year: int) -> Optional[tuple[date, str]]:
+    m = _MONTH_DAY.search(text)
+    if not m:
+        return None
+    parsed = _safe_calendar_date(membership_year, int(m.group(1)), int(m.group(2)))
+    if parsed is None:
+        return None
+    return parsed, m.group(0)
+
+
+def _excel_serial_if_whole_cell(raw: str) -> Optional[date]:
     try:
-        return _parse_iso_date(raw_st)
-    except ValueError:
-        pass
-    try:
-        ser = float(raw_st.replace(",", ""))
+        ser = float(raw.replace(",", ""))
     except ValueError:
         return None
     if 20000 <= ser <= 60000:
@@ -410,17 +494,58 @@ def _parse_roster_payment_date_from_note(raw: str) -> Optional[date]:
     return None
 
 
-def _roster_payment_entries_from_cells(cells: dict[str, str]) -> list[tuple[date, date, str]]:
-    """Build (payment_date, paid_through_dec31, raw) for 2026/2025/2024 columns D, F, H."""
-    out: list[tuple[date, date, str]] = []
+def _leftover_payment_note(raw: str, token: Optional[str], approximate: bool) -> tuple[Optional[str], Optional[str]]:
+    rest = raw.strip()
+    if token:
+        rest = rest.replace(token, " ", 1)
+    rest, form_number = split_trailing_form_number_from_comment(rest)
+    rest = re.sub(r"\s+", " ", rest).strip(" \t-–,;/")
+    parts: list[str] = []
+    if approximate:
+        parts.append(_APPROXIMATE_NOTE)
+    if rest:
+        parts.append(rest)
+    notes = "; ".join(parts) if parts else None
+    return notes, form_number
+
+
+def parse_roster_payment_cell(raw: str, membership_year: int) -> tuple[date, Optional[str], Optional[str]]:
+    """Return (payment_date, notes, form_number) for a non-empty D/F/H cell."""
+    text = (raw or "").strip()
+    serial = _excel_serial_if_whole_cell(text)
+    if serial is not None:
+        return serial, None, None
+    found = _first_full_date_in_text(text)
+    approximate = False
+    token: Optional[str] = None
+    if found is not None:
+        pay_dt, token = found
+    else:
+        found = _first_month_year_in_text(text)
+        if found is not None:
+            pay_dt, token = found
+        else:
+            found = _first_month_day_in_text(text, membership_year)
+            if found is not None:
+                pay_dt, token = found
+            else:
+                pay_dt = date(membership_year, 1, 1)
+                approximate = True
+    notes, form_number = _leftover_payment_note(text, token, approximate)
+    return pay_dt, notes, form_number
+
+
+def _roster_payment_entries_from_cells(
+    cells: dict[str, str],
+) -> list[tuple[date, date, Optional[str], Optional[str]]]:
+    """Build (payment_date, paid_through_dec31, notes, form_number) for non-empty D/F/H cells."""
+    out: list[tuple[date, date, Optional[str], Optional[str]]] = []
     for col, membership_year in (("D", 2026), ("F", 2025), ("H", 2024)):
         raw = (cells.get(col) or "").strip()
-        if not raw:
+        if not raw or raw.lower() in _EXCEL_ERR_TOKENS:
             continue
-        pay_dt = _parse_roster_payment_date_from_note(raw)
-        if pay_dt is None:
-            continue
-        out.append((pay_dt, date(membership_year, 12, 31), raw))
+        pay_dt, notes, form_number = parse_roster_payment_cell(raw, membership_year)
+        out.append((pay_dt, date(membership_year, 12, 31), notes, form_number))
     return out
 
 
@@ -522,6 +647,8 @@ def import_rows(
             first_name=row.first_name,
             call_sign=row.call_sign,
             email=row.email,
+            nickname=row.nickname,
+            qrz_email=row.qrz_email,
             phone=normalize_phone_us_ten_digit(row.phone),
             address_street=row.address_street,
             address_city=row.address_city,
@@ -545,8 +672,7 @@ def import_rows(
 
         if row.roster_historical_payments:
             mt_id = _resolve_membership_type_id(session, mt_source)
-            for pay_dt, paid_through, raw_note in row.roster_historical_payments:
-                _, form_number = split_trailing_form_number_from_comment(raw_note)
+            for pay_dt, paid_through, notes, form_number in row.roster_historical_payments:
                 session.add(
                     Payment(
                         member_id=member.id,
@@ -554,7 +680,7 @@ def import_rows(
                         paid_through=paid_through,
                         membership_year=paid_through.year,
                         membership_type_id=mt_id,
-                        notes=None,
+                        notes=notes,
                         form_number=form_number,
                     )
                 )
@@ -581,20 +707,60 @@ def import_rows(
             session.flush()
 
     session.commit()
+    _apply_family_coverage_after_import(session)
     return imported_members, imported_payments, rows_with_g
+
+
+def _apply_family_coverage_after_import(session: Session) -> None:
+    """Link known roster families and drop secondary payments the primary already covers."""
+    from dvra.family import apply_roster_family_links, delete_secondary_payments_covered_by_primary
+    from dvra.payments import PaymentRepository
+
+    bind = session.get_bind()
+    db_path = getattr(bind.url, "database", None)
+    if not db_path:
+        return
+    raw = sqlite3.connect(db_path)
+    raw.row_factory = sqlite3.Row
+    try:
+        apply_roster_family_links(raw)
+        secondary_ids = delete_secondary_payments_covered_by_primary(raw)
+        pay = PaymentRepository(raw)
+        for member_id in secondary_ids:
+            pay.sync_member_paid_through_from_payments(member_id)
+        raw.commit()
+    finally:
+        raw.close()
 
 
 def _resolve_membership_type_id(session: Session, raw: Optional[str]) -> Optional[int]:
     if not raw or not raw.strip():
         return None
     name = canonical_membership_name(raw)
-    item = session.execute(select(MembershipType).where(MembershipType.name == name)).scalar_one_or_none()
+    item = session.execute(
+        select(MembershipType).where(func.lower(MembershipType.name) == name.lower())
+    ).scalar_one_or_none()
     if item is not None:
         return item.id
     item = MembershipType(name=name)
     session.add(item)
     session.flush()
     return item.id
+
+
+def _nickname_from_cell(raw: Optional[str]) -> Optional[str]:
+    text = (raw or "").strip()
+    if not text or text == "0":
+        return None
+    titled = title_case_import_field_if_all_caps(text)
+    return titled if titled is not None else text
+
+
+def _qrz_email_from_cell(raw: Optional[str]) -> Optional[str]:
+    text = (raw or "").strip()
+    if not text:
+        return None
+    return text.lower()
 
 
 def _read_shared_strings(workbook_zip: ZipFile) -> list[str]:
