@@ -207,6 +207,14 @@
         width: 161,
       },
       {
+        title: "Date paid",
+        field: "date_paid",
+        sorter: "string",
+        width: 125,
+        cssClass: "members-col-fixed-data",
+        formatter: (cell) => cell.getValue() || "",
+      },
+      {
         title: "Paid through",
         field: "paid_through",
         sorter: "string",

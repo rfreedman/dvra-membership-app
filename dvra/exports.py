@@ -101,6 +101,7 @@ MEMBER_KEYS = [
     "membership_type",
     "arrl_member",
     "key_number",
+    "date_paid",
     "paid_through",
 ]
 MEMBER_HEADERS = [
@@ -117,6 +118,7 @@ MEMBER_HEADERS = [
     "Membership type",
     "ARRL",
     "Key #",
+    "Date paid",
     "Paid through",
 ]
 

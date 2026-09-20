@@ -24,6 +24,7 @@ SORT_FIELDS = [
     "license_class",
     "membership_type",
     "arrl_member",
+    "date_paid",
     "paid_through",
 ]
 
@@ -96,6 +97,7 @@ def _order_by_sql(sort_by: str, sort_dir: str) -> str:
         "address_city": f"(m.address_city) IS NULL, m.address_city {direction}{tail}",
         "address_state": f"(m.address_state) IS NULL, m.address_state {direction}{tail}",
         "address_zip": f"(m.address_zip) IS NULL, m.address_zip {direction}{tail}",
+        "date_paid": f"(date_paid) IS NULL, date_paid {direction}{tail}",
         "paid_through": f"(m.paid_through) IS NULL, m.paid_through {direction}{tail}",
         "membership_type": f"(mt.name) IS NULL, mt.name {direction}{tail}",
         "license_class": f"(lc.name) IS NULL, lc.name {direction}{tail}",
@@ -181,6 +183,10 @@ class MemberListRepository:
                    m.address_zip AS address_zip,
                    m.arrl_member AS arrl_member,
                    m.key_number AS key_number,
+                   (SELECT p.payment_date FROM payments p
+                     WHERE p.member_id = m.id
+                     ORDER BY date(p.payment_date) DESC, p.id DESC
+                     LIMIT 1) AS date_paid,
                    m.paid_through AS paid_through,
                    (m.notes IS NOT NULL AND TRIM(m.notes) <> '') AS has_note,
                    lc.name AS lc_name,
@@ -211,6 +217,7 @@ class MemberListRepository:
             "membership_type": str(r["mt_name"] or "").strip(),
             "arrl_member": bool(r["arrl_member"]),
             "key_number": int(r["key_number"]) if r["key_number"] is not None else None,
+            "date_paid": str(r["date_paid"] or ""),
             "paid_through": str(r["paid_through"] or ""),
             "has_note": bool(r["has_note"]),
         }
