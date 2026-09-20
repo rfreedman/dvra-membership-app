@@ -37,7 +37,9 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
+    const field = document.getElementById("covered-by-field");
     const hidden = document.getElementById("covered-by-id");
+    const confirmField = document.getElementById("covered-by-confirm-delete-payment");
     const display = document.getElementById("covered-by-display");
     const openBtn = document.getElementById("covered-by-open");
     const clearBtn = document.getElementById("covered-by-clear");
@@ -68,11 +70,46 @@
       return null;
     }
 
-    function setSelection(id) {
+    function confirmMessage() {
+      if (field) {
+        return field.getAttribute("data-covered-by-delete-confirm") || "";
+      }
+      return "";
+    }
+
+    function shouldConfirmPaymentDelete() {
+      if (!field) {
+        return false;
+      }
+      if (field.getAttribute("data-has-current-year-payment") === "yes") {
+        return true;
+      }
+      const year = field.getAttribute("data-current-membership-year") || "";
+      const paid = hidden.form ? hidden.form.querySelector('[name="paid_for_year"]') : null;
+      return Boolean(paid && year && String(paid.value) === year);
+    }
+
+    function setSelection(id, options) {
+      const opts = options || {};
       const item = findOption(id);
-      hidden.value = item ? String(item.id) : "";
+      const next = item ? String(item.id) : "";
+      const previous = String(hidden.value || "");
+      if (next && next !== previous && !opts.skipConfirm && shouldConfirmPaymentDelete()) {
+        const msg = confirmMessage();
+        if (msg && !window.confirm(msg)) {
+          return false;
+        }
+        if (confirmField) {
+          confirmField.value = "1";
+        }
+      }
+      if (!next && confirmField) {
+        confirmField.value = "";
+      }
+      hidden.value = next;
       display.value = item ? item.label : EMPTY_LABEL;
       notifyHiddenChanged(hidden);
+      return true;
     }
 
     function renderRows() {
@@ -102,8 +139,9 @@
         tr.appendChild(firstTd);
         tr.appendChild(callTd);
         function choose() {
-          setSelection(item.id);
-          dialog.close();
+          if (setSelection(item.id)) {
+            dialog.close();
+          }
         }
         tr.addEventListener("click", choose);
         tr.addEventListener("keydown", function (e) {
@@ -145,6 +183,25 @@
     if (cancelBtn) {
       cancelBtn.addEventListener("click", function () {
         dialog.close();
+      });
+    }
+    if (hidden.form) {
+      hidden.form.addEventListener("submit", function (e) {
+        if (!String(hidden.value || "") || !shouldConfirmPaymentDelete()) {
+          return;
+        }
+        if (confirmField && confirmField.value === "1") {
+          return;
+        }
+        const msg = confirmMessage();
+        if (msg && !window.confirm(msg)) {
+          e.preventDefault();
+          setSelection("", { skipConfirm: true });
+          return;
+        }
+        if (confirmField) {
+          confirmField.value = "1";
+        }
       });
     }
   });

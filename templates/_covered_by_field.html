@@ -9,9 +9,13 @@
     {% endif %}
   {% endfor %}
 {% endif %}
-<div class="member-form-field">
+<div class="member-form-field" id="covered-by-field"
+     data-current-membership-year="{{ current_membership_year }}"
+     data-has-current-year-payment="{% if has_own_current_year_payment %}yes{% else %}no{% endif %}"
+     data-covered-by-delete-confirm="{{ covered_by_delete_current_payment_confirm }}">
   <span class="member-form-field-label" id="covered-by-label">Covered by family member</span>
   <input type="hidden" name="family_primary_member_id" id="covered-by-id" value="{{ ns.value }}">
+  <input type="hidden" name="confirm_delete_current_year_payment" id="covered-by-confirm-delete-payment" value="">
   <div class="covered-by-picker-row">
     <input id="covered-by-display" class="member-form-control" type="text" readonly
            value="{{ ns.label or '—' }}" aria-labelledby="covered-by-label" tabindex="0">

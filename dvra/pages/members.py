@@ -7,6 +7,7 @@ from datetime import date
 from typing import Any
 
 from dvra import exports
+from dvra import family
 from dvra import http as htt
 from dvra import list_params
 from dvra import member_list
@@ -43,6 +44,7 @@ def _member_ref(
     include_primary_id: int | None = None,
 ) -> dict[str, Any]:
     repo = MemberRepository(ctx["conn"])
+    year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
     return {
         "license_classes": repo.list_license_classes(),
         "membership_types": repo.list_membership_types(),
@@ -52,15 +54,26 @@ def _member_ref(
         "new_ham_type_id": new_ham.find_type_id(ctx["conn"]),
         "new_ham_convert_confirm": new_ham.NEW_HAM_CONVERT_CONFIRM,
         "unlicensed_license_class_id": find_unlicensed_class_id(ctx["conn"]),
+        "current_membership_year": year,
+        "has_own_current_year_payment": False,
+        "covered_by_delete_current_payment_confirm": family.covered_by_delete_current_payment_confirm(
+            year
+        ),
     }
 
 
 def _member_detail_template_ctx(ctx: RequestCtx, member: dict[str, Any]) -> dict[str, Any]:
+    year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
+    member_id = member.get("id")
+    has_current = False
+    if member_id is not None:
+        has_current = family.member_has_payment_for_year(ctx["conn"], int(member_id), year)
     return {
         **_member_ref(ctx, member.get("id"), member.get("family_primary_member_id")),
         "call_sign_disabled": is_unlicensed_license_class_id(
             ctx["conn"], member.get("license_class_id")
         ),
+        "has_own_current_year_payment": has_current,
     }
 
 
@@ -224,8 +237,15 @@ def handle_member_new_post(ctx: RequestCtx) -> htt.Response:
     if cs is None and members_repo.exists_name_without_call_sign(row["last_name"], row["first_name"], None):
         return fail("A member with this name already exists without a call sign.", 409)
     try:
+        current_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
+        covered_by_current = (
+            row.get("family_primary_member_id") is not None and paid_year == current_year
+        )
+        confirmed_delete = str(body.get("confirm_delete_current_year_payment") or "") == "1"
+        if covered_by_current and not confirmed_delete:
+            return fail(family.covered_by_delete_current_payment_confirm(current_year), 400)
         new_id = members_repo.insert_member(row)
-        if paid_year is not None and not row.get("deceased"):
+        if paid_year is not None and not row.get("deceased") and not covered_by_current:
             join_date = _new_member_join_date()
             initial = join_extension.resolve_new_member_initial_payment(
                 ctx["conn"],
@@ -296,8 +316,18 @@ def handle_member_edit(ctx: RequestCtx, id_: int) -> htt.Response:
         return fail("That call sign is already in use.", 409)
     if eff is None and members_repo.exists_name_without_call_sign(row["last_name"], row["first_name"], id_):
         return fail("Another member with this name already exists without a call sign.", 409)
+    year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
+    has_current = family.member_has_payment_for_year(ctx["conn"], id_, year)
+    confirmed_delete = str(ctx["form"].get("confirm_delete_current_year_payment") or "") == "1"
+    new_primary = row.get("family_primary_member_id")
+    if new_primary is not None and has_current and not confirmed_delete:
+        return fail(family.covered_by_delete_current_payment_confirm(year), 400)
     try:
-        members_repo.update_member(id_, row)
+        members_repo.update_member(
+            id_,
+            row,
+            delete_current_year_payment=bool(new_primary and has_current and confirmed_delete),
+        )
     except DuplicateMemberKeyNumber:
         return fail("That key number is already assigned to another member.", 409)
     except sqlite3.Error:

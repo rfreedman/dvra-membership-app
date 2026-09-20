@@ -44,6 +44,35 @@ def apply_roster_family_links(conn: sqlite3.Connection) -> None:
         )
 
 
+def covered_by_delete_current_payment_confirm(membership_year: int) -> str:
+    return (
+        f"This member has a payment for membership year {membership_year}. "
+        "Continue to set Covered by and delete that payment? "
+        "Cancel keeps the payment and does not change Covered by."
+    )
+
+
+def member_has_payment_for_year(
+    conn: sqlite3.Connection, member_id: int, membership_year: int
+) -> bool:
+    row = conn.execute(
+        "SELECT 1 FROM payments WHERE member_id = ? AND membership_year = ? LIMIT 1",
+        (member_id, membership_year),
+    ).fetchone()
+    return row is not None
+
+
+def delete_member_payments_for_year(
+    conn: sqlite3.Connection, member_id: int, membership_year: int
+) -> int:
+    """Delete this member's own payments for one membership year. Returns rows deleted."""
+    cur = conn.execute(
+        "DELETE FROM payments WHERE member_id = ? AND membership_year = ?",
+        (member_id, membership_year),
+    )
+    return int(cur.rowcount or 0)
+
+
 def delete_secondary_payments_covered_by_primary(
     conn: sqlite3.Connection,
     member_id: int | None = None,

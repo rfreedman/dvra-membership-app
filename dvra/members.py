@@ -252,7 +252,9 @@ class MemberRepository:
         self.conn.commit()
         return int(cur.lastrowid)
 
-    def update_member(self, id_: int, data: dict[str, Any]) -> None:
+    def update_member(
+        self, id_: int, data: dict[str, Any], *, delete_current_year_payment: bool = False
+    ) -> None:
         self._coerce_phone(data)
         self.enforce_unique_key_number(data["key_number"], id_)
         self.conn.execute(
@@ -288,17 +290,36 @@ class MemberRepository:
                 id_,
             ),
         )
-        self._remove_covered_secondary_payments(id_, data.get("family_primary_member_id"))
+        self._remove_covered_secondary_payments(
+            id_,
+            data.get("family_primary_member_id"),
+            delete_current_year_payment=delete_current_year_payment,
+        )
         self.conn.commit()
 
-    def _remove_covered_secondary_payments(self, member_id: int, primary_id: Any) -> None:
+    def _remove_covered_secondary_payments(
+        self,
+        member_id: int,
+        primary_id: Any,
+        *,
+        delete_current_year_payment: bool = False,
+    ) -> None:
         if primary_id is None:
             return
         from dvra.payments import PaymentRepository
 
+        removed_current = 0
+        if delete_current_year_payment:
+            current_year = AppSettingsRepository(self.conn).get_current_membership_year()
+            removed_current = family.delete_member_payments_for_year(
+                self.conn, member_id, current_year
+            )
         secondary_ids = family.delete_secondary_payments_covered_by_primary(self.conn, member_id)
         pay = PaymentRepository(self.conn)
-        for sid in secondary_ids:
+        to_sync = set(secondary_ids)
+        if removed_current:
+            to_sync.add(member_id)
+        for sid in sorted(to_sync):
             pay.sync_member_paid_through_from_payments(sid)
 
     def update_member_notes(self, id_: int, notes: str | None) -> bool:
@@ -318,6 +339,7 @@ class MemberRepository:
             raise MemberHasFamilySecondaries(
                 "Unlink covered family members before deleting this member: " + "; ".join(labels) + "."
             )
+        self.conn.execute("DELETE FROM payments WHERE member_id = ?", (id_,))
         cur = self.conn.execute("DELETE FROM members WHERE id = ?", (id_,))
         self.conn.commit()
         return cur.rowcount > 0

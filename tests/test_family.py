@@ -11,11 +11,12 @@ from dvra.family import (
 )
 from dvra.member_list import MemberListRepository
 from dvra.members import MemberHasFamilySecondaries, MemberRepository
+from dvra.pages.members import handle_member_edit, handle_member_new_post
 from dvra.payments import PaymentRepository
 from dvra.reference_data import ReferenceDataRepository
 from dvra.reports import ReportsRepository
 
-from tests.conftest import insert_member, memory_db
+from tests.conftest import insert_member, member_create_form, memory_db
 
 
 def _pay(conn, member_id: int, year: int) -> None:
@@ -249,6 +250,117 @@ def test_cannot_delete_primary_with_secondaries():
     assert MemberRepository(conn).delete_member_by_id(secondary) is True
 
 
+def test_delete_member_with_payments_succeeds():
+    conn = memory_db()
+    mid = insert_member(conn, "McTestFace", "Testy")
+    _pay(conn, mid, 2026)
+    assert conn.execute("SELECT COUNT(*) FROM payments WHERE member_id = ?", (mid,)).fetchone()[0] == 1
+    assert MemberRepository(conn).delete_member_by_id(mid) is True
+    assert conn.execute("SELECT id FROM members WHERE id = ?", (mid,)).fetchone() is None
+    assert conn.execute("SELECT COUNT(*) FROM payments WHERE member_id = ?", (mid,)).fetchone()[0] == 0
+
+
+def _edit_ctx(conn, form: dict) -> dict:
+    return {"conn": conn, "session": {}, "form": form, "query": {}}
+
+
+def test_setting_covered_by_without_confirm_keeps_current_year_payment():
+    conn = memory_db()
+    AppSettingsRepository(conn).set_current_membership_year(2026)
+    primary = insert_member(conn, "Wilson", "Gary")
+    secondary = insert_member(conn, "Wilson", "Jill")
+    _pay(conn, secondary, 2026)
+    form = member_create_form(
+        conn,
+        last_name="Wilson",
+        first_name="Jill",
+        family_primary_member_id=str(primary),
+    )
+    resp = handle_member_edit(_edit_ctx(conn, form), secondary)
+    assert resp.status == 400
+    years = [
+        int(r["membership_year"])
+        for r in conn.execute(
+            "SELECT membership_year FROM payments WHERE member_id = ?",
+            (secondary,),
+        )
+    ]
+    assert years == [2026]
+    linked = conn.execute(
+        "SELECT family_primary_member_id FROM members WHERE id = ?",
+        (secondary,),
+    ).fetchone()
+    assert linked["family_primary_member_id"] is None
+
+
+def test_setting_covered_by_with_confirm_deletes_current_year_payment():
+    conn = memory_db()
+    AppSettingsRepository(conn).set_current_membership_year(2026)
+    primary = insert_member(conn, "Wilson", "Gary")
+    secondary = insert_member(conn, "Wilson", "Jill")
+    _pay(conn, secondary, 2026)
+    _pay(conn, secondary, 2024)
+    form = member_create_form(
+        conn,
+        last_name="Wilson",
+        first_name="Jill",
+        family_primary_member_id=str(primary),
+        confirm_delete_current_year_payment="1",
+    )
+    resp = handle_member_edit(_edit_ctx(conn, form), secondary)
+    assert resp.status == 303
+    years = [
+        int(r["membership_year"])
+        for r in conn.execute(
+            "SELECT membership_year FROM payments WHERE member_id = ? ORDER BY membership_year",
+            (secondary,),
+        )
+    ]
+    assert years == [2024]
+
+
+def test_new_covered_by_member_without_confirm_keeps_no_member():
+    conn = memory_db()
+    AppSettingsRepository(conn).set_current_membership_year(2026)
+    primary = insert_member(conn, "Wilson", "Gary")
+    _pay(conn, primary, 2026)
+    form = member_create_form(
+        conn,
+        last_name="Wilson",
+        first_name="Jill",
+        call_sign="W2JILX",
+        family_primary_member_id=str(primary),
+        paid_for_year="2026",
+    )
+    resp = handle_member_new_post(_edit_ctx(conn, form))
+    assert resp.status == 400
+    assert conn.execute("SELECT id FROM members WHERE call_sign = 'W2JILX'").fetchone() is None
+
+
+def test_new_covered_by_member_with_confirm_skips_current_year_payment():
+    conn = memory_db()
+    AppSettingsRepository(conn).set_current_membership_year(2026)
+    primary = insert_member(conn, "Wilson", "Gary")
+    _pay(conn, primary, 2026)
+    form = member_create_form(
+        conn,
+        last_name="Wilson",
+        first_name="Jill",
+        call_sign="W2JILX",
+        family_primary_member_id=str(primary),
+        paid_for_year="2026",
+        confirm_delete_current_year_payment="1",
+    )
+    resp = handle_member_new_post(_edit_ctx(conn, form))
+    assert resp.status == 303
+    mid = int(conn.execute("SELECT id FROM members WHERE call_sign = 'W2JILX'").fetchone()[0])
+    own = conn.execute(
+        "SELECT COUNT(*) FROM payments WHERE member_id = ? AND membership_year = 2026",
+        (mid,),
+    ).fetchone()
+    assert int(own[0]) == 0
+
+
 def _type_id(conn, name: str) -> int:
     ref = ReferenceDataRepository(conn)
     row = conn.execute("SELECT id FROM membership_types WHERE name = ? LIMIT 1", (name,)).fetchone()
@@ -341,6 +453,7 @@ def test_covered_by_picker_markup_uses_search_dialog():
     )
     assert 'name="family_primary_member_id"' in field
     assert 'id="covered-by-id"' in field
+    assert 'name="confirm_delete_current_year_payment"' in field
     assert 'id="covered-by-open"' in field
     assert 'id="covered-by-search"' not in field
     assert "<select" not in field
