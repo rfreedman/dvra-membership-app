@@ -73,7 +73,7 @@
     </form>
     <div class="results-and-export-row">
       <p class="results-meta">{{ total }} member{% if total != 1 %}s{% endif %}</p>
-      {{ export_links('Export matching members:', '/members/export', 'members-export-link-') }}
+      {{ export_links('Export matching members:', '/members/export', 'members-export-link-', include_pdf=False) }}
     </div>
   </div>
   <div class="grid-page-body">

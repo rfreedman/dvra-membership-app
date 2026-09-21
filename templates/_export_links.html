@@ -1,10 +1,12 @@
-{% macro export_links(label, path_stem, id_prefix) -%}
+{% macro export_links(label, path_stem, id_prefix, include_pdf=True) -%}
 <p class="muted export-links" data-export-base="{{ base }}" data-export-path="{{ path_stem }}" data-export-prefix="{{ id_prefix }}">
   {{ label }}
   <a id="{{ id_prefix }}xlsx" href="{{ url_for(path_stem ~ '.xlsx') }}">Excel</a>
   <span aria-hidden="true">·</span>
   <a id="{{ id_prefix }}csv" href="{{ url_for(path_stem ~ '.csv') }}">CSV</a>
+  {% if include_pdf %}
   <span aria-hidden="true">·</span>
   <a id="{{ id_prefix }}pdf" href="{{ url_for(path_stem ~ '.pdf') }}">PDF</a>
+  {% endif %}
 </p>
 {%- endmacro %}
