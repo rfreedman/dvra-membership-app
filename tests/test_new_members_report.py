@@ -33,24 +33,26 @@ def test_parse_new_members_uses_default_when_missing_or_invalid():
     assert parse_new_members_query({"since": "2026-04-10"}, today=today)["since"] == "2026-04-10"
 
 
-def test_new_members_filters_by_latest_date_paid():
+def test_new_members_requires_exactly_one_payment_on_or_after_since():
     conn = memory_db()
     ref = ReferenceDataRepository(conn)
     ref.create_membership_type("Individual")
     individual_id = int(
         conn.execute("SELECT id FROM membership_types WHERE name = 'Individual'").fetchone()[0]
     )
-    included = insert_member(conn, "Able", "Ann")
-    excluded = insert_member(conn, "Baker", "Bob")
+    first_time = insert_member(conn, "Able", "Ann")
+    too_early = insert_member(conn, "Baker", "Bob")
+    renewal = insert_member(conn, "Dale", "Dee")
     none = insert_member(conn, "Cain", "Cara")
     conn.execute(
         "UPDATE members SET address_city = ?, address_state = ?, membership_type_id = ? WHERE id = ?",
-        ("Trenton", "NJ", individual_id, included),
+        ("Trenton", "NJ", individual_id, first_time),
     )
     conn.commit()
-    _pay(conn, included, "2026-08-01", 2026)
-    _pay(conn, included, "2026-09-12", 2026)
-    _pay(conn, excluded, "2026-08-15", 2026)
+    _pay(conn, first_time, "2026-09-12", 2026)
+    _pay(conn, too_early, "2026-08-15", 2026)
+    _pay(conn, renewal, "2026-08-01", 2026)
+    _pay(conn, renewal, "2026-09-12", 2026)
     rows = ReportsRepository(conn).list_new_members("2026-09-01")
     names = {r["last_name"] for r in rows}
     assert names == {"Able"}
@@ -60,3 +62,5 @@ def test_new_members_filters_by_latest_date_paid():
     assert rows[0]["city"] == "Trenton"
     assert rows[0]["state"] == "NJ"
     assert none not in {r["id"] for r in rows}
+    assert too_early not in {r["id"] for r in rows}
+    assert renewal not in {r["id"] for r in rows}

@@ -9,7 +9,6 @@ from typing import Any
 from dvra import family
 from dvra import join_extension
 from dvra import membership_year as myear
-from dvra.member_list import DATE_PAID_SUBQUERY
 from dvra.sort_toggle import next_sort_choice, normalize_sort
 
 KEYHOLDERS_SORT_FIELDS = ["name", "call_sign", "key_number", "email"]
@@ -222,8 +221,12 @@ class ReportsRepository:
         self, since: str, sort_by: str = "name", sort_dir: str = "asc"
     ) -> list[dict]:
         parsed = parse_new_members_query({"sort_by": sort_by, "sort_dir": sort_dir, "since": since})
-        where = f"""{DATE_PAID_SUBQUERY} IS NOT NULL
-              AND date({DATE_PAID_SUBQUERY}) >= date(?)"""
+        where = """EXISTS (
+            SELECT 1 FROM payments p
+            WHERE p.member_id = m.id
+            GROUP BY p.member_id
+            HAVING COUNT(*) = 1 AND date(MIN(p.payment_date)) >= date(?)
+        )"""
         return self._list_member_detail_rows(where, (parsed["since"],), parsed["sort_by"], parsed["sort_dir"])
 
     def list_paid_memberships(

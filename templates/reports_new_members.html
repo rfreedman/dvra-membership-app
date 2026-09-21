@@ -17,7 +17,7 @@
         <button type="submit">Apply</button>
       </div>
     </form>
-    <p class="muted">Members whose date paid (latest payment date) is on or after {{ since }}. Defaults to the first of the current month.</p>
+    <p class="muted">Members with exactly one payment, dated on or after {{ since }}. Defaults to the first of the current month. Earlier payments mean the member is not new.</p>
     <div class="results-and-export-row report-export-row--after-heading">
       <p class="results-meta">{{ total }} member{% if total != 1 %}s{% endif %}</p>
       {{ export_links('Export this report:', '/reports/new-members/export', 'new-members-exp-') }}
