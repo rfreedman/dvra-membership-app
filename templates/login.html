@@ -1,3 +1,4 @@
+{% from '_password_field.html' import password_input %}
 <div class="grid-page">
 <div class="grid-page-top"><h2>Login</h2></div>
 <div class="grid-page-body standard-page-scroll" style="height:auto;">
@@ -9,40 +10,10 @@
     <input id="login-username" name="username" required autocomplete="username">
   </label>
   <label for="login-password">Password
-    <span class="login-password-wrap">
-      <input id="login-password" type="password" name="password" required autocomplete="current-password">
-      <button type="button" class="login-password-toggle" id="login-show-password" aria-label="Show password" aria-pressed="false" aria-controls="login-password">
-        <svg class="login-password-icon-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/>
-          <circle cx="12" cy="12" r="3"/>
-        </svg>
-        <svg class="login-password-icon-hide is-hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M3 3l18 18"/>
-          <path d="M10.6 10.6a3 3 0 1 0 4.2 4.2"/>
-          <path d="M9.5 5.2A11 11 0 0 1 12 5c6.5 0 10 7 10 7a18 18 0 0 1-2.1 3.1"/>
-          <path d="M6.1 6.1C3.9 7.6 2 12 2 12s3.5 7 10 7a10.8 10.8 0 0 0 4.4-.9"/>
-        </svg>
-      </button>
-    </span>
+    {{ password_input('login-password', autocomplete='current-password') }}
   </label>
   <button type="submit">Sign in</button>
 </form>
 </div>
 </div>
-<script>
-(function () {
-  const password = document.getElementById("login-password");
-  const toggle = document.getElementById("login-show-password");
-  if (!password || !toggle) return;
-  const iconShow = toggle.querySelector(".login-password-icon-show");
-  const iconHide = toggle.querySelector(".login-password-icon-hide");
-  toggle.addEventListener("click", function () {
-    const show = password.type === "password";
-    password.type = show ? "text" : "password";
-    toggle.setAttribute("aria-pressed", show ? "true" : "false");
-    toggle.setAttribute("aria-label", show ? "Hide password" : "Show password");
-    if (iconShow) iconShow.classList.toggle("is-hidden", show);
-    if (iconHide) iconHide.classList.toggle("is-hidden", !show);
-  });
-})();
-</script>
+{% include "_password_reveal_scripts.html" %}

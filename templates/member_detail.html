@@ -5,7 +5,7 @@
   <div class="member-page-header">
     <h2>{% if member.call_sign %}{{ member.call_sign }} — {% endif %}{{ member.last_name }}, {{ member.first_name }}{% if member.deceased %} (SK){% endif %}</h2>
     <div class="member-page-actions">
-      <a class="btn-primary member-edit-leave-risk" href="{{ url_for('/members/' ~ member.id ~ '/payments') }}">Payments</a>
+      <a class="btn-primary{% if not read_only %} member-edit-leave-risk{% endif %}" href="{{ url_for('/members/' ~ member.id ~ '/payments') }}">Payments</a>
     </div>
   </div>
 
@@ -13,6 +13,7 @@
     data-new-ham-id="{{ new_ham_type_id if new_ham_type_id is not none else '' }}"
     data-initial-membership="{{ member.membership_type_id if member.membership_type_id is not none else '' }}"
     data-new-ham-confirm="{{ new_ham_convert_confirm }}">
+    <fieldset class="member-edit-fieldset{% if read_only %} member-edit-fieldset--readonly{% endif %}"{% if read_only %} disabled{% endif %}>
     <div class="member-form-field">
       <label for="edit-last-name">Last name</label>
       <input id="edit-last-name" class="member-form-control" name="last_name" value="{{ member.last_name }}" required autocomplete="family-name">
@@ -39,11 +40,11 @@
     </div>
     <div class="member-form-field">
       <label for="edit-nickname">Nickname</label>
-      <input id="edit-nickname" class="member-form-control" name="nickname" value="{{ member.nickname or '' }}" autocomplete="nickname" placeholder="optional">
+      <input id="edit-nickname" class="member-form-control" name="nickname" value="{{ member.nickname or '' }}" autocomplete="nickname"{% if not read_only %} placeholder="optional"{% endif %}>
     </div>
     <div class="member-form-field">
       <label for="edit-qrz-email">QRZ email</label>
-      <input id="edit-qrz-email" class="member-form-control" name="qrz_email" type="email" value="{{ member.qrz_email or '' }}" autocomplete="off" placeholder="optional">
+      <input id="edit-qrz-email" class="member-form-control" name="qrz_email" type="email" value="{{ member.qrz_email or '' }}" autocomplete="off"{% if not read_only %} placeholder="optional"{% endif %}>
     </div>
     <div class="member-form-field">
       <label for="edit-phone">Phone</label>
@@ -103,7 +104,7 @@
     </div>
     <div class="member-form-field">
       <label for="edit-key">Key number</label>
-      <input id="edit-key" class="member-form-control no-spinner" name="key_number" type="number" min="0" step="1" value="{{ member.key_number if member.key_number is not none else '' }}" placeholder="optional">
+      <input id="edit-key" class="member-form-control no-spinner" name="key_number" type="number" min="0" step="1" value="{{ member.key_number if member.key_number is not none else '' }}"{% if not read_only %} placeholder="optional"{% endif %}>
     </div>
 
     <div class="member-form-field member-form-field--readonly" aria-live="polite">
@@ -112,15 +113,21 @@
       {% if member.paid_through_inherited and member.family_primary_label %}
       <p class="member-form-help">Inherited from {{ member.family_primary_label }}.</p>
       {% endif %}
+      {% if read_only %}
+      <p class="member-form-help"><a href="{{ url_for('/members/' ~ member.id ~ '/payments') }}">View payments</a></p>
+      {% else %}
       <p class="member-form-help"><a class="member-edit-leave-risk" href="{{ url_for('/members/' ~ member.id ~ '/payments') }}">Edit payments</a> to change paid-through date.</p>
+      {% endif %}
     </div>
 
     <div class="member-form-field member-form-field--full">
       <label for="edit-notes">Notes</label>
-      <textarea id="edit-notes" class="member-form-control" name="notes" rows="5" placeholder="Optional">{{ member.notes or '' }}</textarea>
+      <textarea id="edit-notes" class="member-form-control" name="notes" rows="5"{% if not read_only %} placeholder="Optional"{% endif %}>{{ member.notes or '' }}</textarea>
     </div>
+    </fieldset>
   </form>
 
+  {% if not read_only %}
   <div class="member-form-actions-row">
     <button type="submit" form="member-edit-form" id="member-edit-save" class="member-form-submit">Save member</button>
     <form method="post" action="{{ url_for('/members/' ~ member.id ~ '/delete') }}" class="member-delete-form-inline" id="member-delete-form" data-confirm-delete="Delete this member and all payments?">
@@ -128,4 +135,5 @@
     </form>
   </div>
   {% include "_covered_by_dialog.html" %}
+  {% endif %}
 </div>

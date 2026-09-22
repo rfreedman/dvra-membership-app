@@ -455,8 +455,20 @@ def test_covered_by_picker_markup_uses_search_dialog():
     assert 'id="covered-by-id"' in field
     assert 'name="confirm_delete_current_year_payment"' in field
     assert 'id="covered-by-open"' in field
+    assert 'id="covered-by-clear"' in field
     assert 'id="covered-by-search"' not in field
     assert "<select" not in field
+    readonly_field = view.render(
+        "_covered_by_field.html",
+        covered_by_value=2,
+        covered_by_label="Baker, Bob (K2BOB)",
+        family_primary_options=[],
+        read_only=True,
+    )
+    assert 'id="covered-by-open"' not in readonly_field
+    assert 'id="covered-by-clear"' not in readonly_field
+    assert "Choose" not in readonly_field
+    assert "Clear" not in readonly_field
     dialog = view.render(
         "_covered_by_dialog.html",
         family_primary_options=[

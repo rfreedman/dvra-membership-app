@@ -1226,6 +1226,19 @@ input.no-spinner[type="number"] {
   -webkit-text-fill-color: var(--color-muted);
 }
 
+/* Read-only mode: keep controls non-editable but visually normal. */
+.member-detail-page .member-edit-fieldset--readonly .member-form-control:disabled,
+.member-detail-page .member-edit-fieldset--readonly .member-form-control[disabled],
+.member-detail-page .member-edit-fieldset--readonly select.member-form-control:disabled,
+.member-detail-page .member-edit-fieldset--readonly textarea.member-form-control:disabled {
+  opacity: 1;
+  background: #fff;
+  color: var(--color-text);
+  border-color: var(--member-form-border);
+  cursor: default;
+  -webkit-text-fill-color: var(--color-text);
+}
+
 .member-detail-page .member-form-readonly-text {
   margin: 0;
   font-size: 0.98rem;
@@ -1472,17 +1485,24 @@ input.no-spinner[type="number"] {
   width: 100%;
 }
 
-.login-password-wrap {
+.login-password-wrap,
+.password-reveal-wrap {
   position: relative;
   display: block;
   width: 100%;
 }
 
-.login-password-wrap input {
+.login-password-wrap input,
+.password-reveal-wrap input {
   padding-right: 2.4rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.stacked-form button.login-password-toggle {
+.stacked-form button.login-password-toggle,
+.stacked-form button.password-reveal-toggle,
+.inline-form button.password-reveal-toggle,
+button.password-reveal-toggle {
   position: absolute;
   top: 50%;
   right: 0.2rem;
@@ -1493,28 +1513,38 @@ input.no-spinner[type="number"] {
   width: 2rem;
   height: 2rem;
   padding: 0;
+  margin: 0;
   background: transparent;
   color: var(--color-muted);
   border: none;
   border-radius: 4px;
+  cursor: pointer;
 }
 
-.stacked-form button.login-password-toggle:hover {
+.stacked-form button.login-password-toggle:hover,
+.stacked-form button.password-reveal-toggle:hover,
+.inline-form button.password-reveal-toggle:hover,
+button.password-reveal-toggle:hover {
   background: #f1f5f9;
   color: var(--color-header-bottom);
 }
 
-.stacked-form button.login-password-toggle:focus-visible {
+.stacked-form button.login-password-toggle:focus-visible,
+.stacked-form button.password-reveal-toggle:focus-visible,
+.inline-form button.password-reveal-toggle:focus-visible,
+button.password-reveal-toggle:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
 
-.login-password-toggle svg {
+.login-password-toggle svg,
+.password-reveal-toggle svg {
   width: 1.15rem;
   height: 1.15rem;
   display: block;
 }
 
-.login-password-toggle svg.is-hidden {
+.login-password-toggle svg.is-hidden,
+.password-reveal-toggle svg.is-hidden {
   display: none;
 }

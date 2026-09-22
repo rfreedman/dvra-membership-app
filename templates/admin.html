@@ -1,3 +1,4 @@
+{% from '_password_field.html' import password_input %}
 <div class="standard-page-scroll admin-reference-page">
   <div class="member-page-header">
     <h2>Reference data and accounts</h2>
@@ -154,8 +155,8 @@
     <div class="reference-row">
       <strong>{{ au.username }}</strong>
       <form class="inline-form" method="post" action="{{ url_for('/admins/' ~ au.id ~ '/password') }}">
-        <label>New password
-          <input name="password" type="password" autocomplete="new-password" required>
+        <label for="admin-pw-{{ au.id }}">New password
+          {{ password_input('admin-pw-' ~ au.id) }}
         </label>
         <div class="inline-form-actions">
           <button type="submit">Set password</button>
@@ -175,8 +176,8 @@
       <label>New admin username
         <input name="username" maxlength="128" autocomplete="username" required>
       </label>
-      <label>Initial password
-        <input name="password" type="password" autocomplete="new-password" required>
+      <label for="admin-create-pw">Initial password
+        {{ password_input('admin-create-pw') }}
       </label>
       <div class="inline-form-actions">
         <button type="submit">Create admin</button>
@@ -198,8 +199,8 @@
         </div>
       </form>
       <form class="inline-form" method="post" action="{{ url_for('/managers/' ~ mg.id ~ '/password') }}">
-        <label>New password
-          <input name="password" type="password" autocomplete="new-password" required>
+        <label for="manager-pw-{{ mg.id }}">New password
+          {{ password_input('manager-pw-' ~ mg.id) }}
         </label>
         <div class="inline-form-actions">
           <button type="submit">Set password</button>
@@ -217,8 +218,8 @@
       <label>New manager username
         <input name="username" maxlength="128" autocomplete="username" required>
       </label>
-      <label>Initial password
-        <input name="password" type="password" autocomplete="new-password" required>
+      <label for="manager-create-pw">Initial password
+        {{ password_input('manager-create-pw') }}
       </label>
       <label>Display name (optional)
         <input name="display_name" maxlength="256">
@@ -228,4 +229,50 @@
       </div>
     </form>
   </section>
+
+  <section class="reference-block">
+    <h3>Read-only users</h3>
+    {% for ru in readonly_users %}
+    <div class="reference-row">
+      <strong>{{ ru.username }}</strong>
+      <form class="inline-form" method="post" action="{{ url_for('/readonly-users/' ~ ru.id ~ '/profile') }}">
+        <label>Display name
+          <input name="display_name" value="{{ ru.display_name or '' }}" maxlength="256">
+        </label>
+        <div class="inline-form-actions">
+          <button type="submit">Save profile</button>
+        </div>
+      </form>
+      <form class="inline-form" method="post" action="{{ url_for('/readonly-users/' ~ ru.id ~ '/password') }}">
+        <label for="readonly-pw-{{ ru.id }}">New password
+          {{ password_input('readonly-pw-' ~ ru.id) }}
+        </label>
+        <div class="inline-form-actions">
+          <button type="submit">Set password</button>
+        </div>
+      </form>
+      <form class="inline-form inline-delete-form" method="post" action="{{ url_for('/readonly-users/' ~ ru.id ~ '/delete') }}">
+        <div class="inline-form-actions">
+          <button type="submit" class="btn-danger">Delete</button>
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+
+    <form class="inline-form" method="post" action="{{ url_for('/readonly-users/create') }}">
+      <label>New read-only username
+        <input name="username" maxlength="128" autocomplete="username" required>
+      </label>
+      <label for="readonly-create-pw">Initial password
+        {{ password_input('readonly-create-pw') }}
+      </label>
+      <label>Display name (optional)
+        <input name="display_name" maxlength="256">
+      </label>
+      <div class="inline-form-actions">
+        <button type="submit">Create read-only user</button>
+      </div>
+    </form>
+  </section>
 </div>
+{% include "_password_reveal_scripts.html" %}

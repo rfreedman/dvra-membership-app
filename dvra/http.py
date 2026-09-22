@@ -128,7 +128,10 @@ def parse_form(body: bytes | None = None) -> dict[str, Any]:
         return _parse_multipart(raw, ctype)
     text = raw.decode("utf-8", errors="replace")
     parsed = parse_qs(text, keep_blank_values=True)
-    return {k: v[-1] if len(v) == 1 else v for k, v in parsed.items()}
+    # Always keep the last value for a key. Returning a list breaks callers that
+    # do str(form.get("password")) — password managers sometimes submit
+    # duplicate password fields, which previously stored str(['pw','pw']).
+    return {k: v[-1] for k, v in parsed.items() if v}
 
 
 def _parse_multipart(body: bytes, content_type: str) -> dict[str, Any]:
@@ -147,14 +150,8 @@ def _parse_multipart(body: bytes, content_type: str) -> dict[str, Any]:
         else:
             charset = part.get_content_charset() or "utf-8"
             value = payload.decode(charset, errors="replace")
-        if name in out:
-            existing = out[name]
-            if isinstance(existing, list):
-                existing.append(value)
-            else:
-                out[name] = [existing, value]
-        else:
-            out[name] = value
+        # Last wins (same as urlencoded parse_form).
+        out[name] = value
     return out
 
 

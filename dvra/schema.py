@@ -15,7 +15,7 @@ from dvra.new_ham import NEW_HAM_TYPE_NAME
 from dvra.paths import SCHEMA_PATH
 
 # Bump when schema.sql or migrate_* logic changes so ensure() re-runs.
-SCHEMA_USER_VERSION = 13
+SCHEMA_USER_VERSION = 14
 
 
 def ensure(conn: sqlite3.Connection) -> None:
@@ -40,6 +40,7 @@ def ensure(conn: sqlite3.Connection) -> None:
     migrate_delete_secondary_payments_covered_by_primary(conn)
     migrate_member_deceased(conn)
     migrate_reference_hidden(conn)
+    migrate_readonly_users(conn)
     conn.execute(f"PRAGMA user_version = {SCHEMA_USER_VERSION}")
     conn.commit()
 
@@ -225,6 +226,21 @@ def migrate_seed_new_ham_membership_type(conn: sqlite3.Connection) -> None:
         WHERE NOT EXISTS (SELECT 1 FROM membership_types WHERE name = ?)
         """,
         (NEW_HAM_TYPE_NAME, NEW_HAM_TYPE_NAME),
+    )
+
+
+def migrate_readonly_users(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS readonly_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username VARCHAR(128) NOT NULL,
+            password_hash VARCHAR(256) NOT NULL,
+            display_name VARCHAR(256),
+            created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+            CONSTRAINT uq_readonly_user_username UNIQUE (username)
+        )
+        """
     )
 
 

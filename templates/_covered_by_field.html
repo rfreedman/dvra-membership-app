@@ -19,7 +19,9 @@
   <div class="covered-by-picker-row">
     <input id="covered-by-display" class="member-form-control" type="text" readonly
            value="{{ ns.label or '—' }}" aria-labelledby="covered-by-label" tabindex="0">
+    {% if not read_only %}
     <button type="button" class="covered-by-choose" id="covered-by-open">Choose</button>
     <button type="button" class="filter-clear covered-by-clear" id="covered-by-clear">Clear</button>
+    {% endif %}
   </div>
 </div>

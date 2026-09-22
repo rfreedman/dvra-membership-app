@@ -7,7 +7,7 @@
   <p class="muted">{{ new_ham_notice }}</p>
   {% endif %}
 
-  {% if rollover %}
+  {% if rollover and not read_only %}
   {% set req_y = rollover.requested_year %}
   {% set prop_y = rollover.proposed_year %}
   {% if rollover.mode == 'edit' %}
@@ -35,7 +35,7 @@
   <div class="member-page-header">
     <h2>Payments — {{ member.last_name }}, {{ member.first_name }}{% if member.call_sign %} ({{ member.call_sign }}){% endif %}</h2>
     <div class="member-page-actions">
-      {% if not member.deceased %}
+      {% if not read_only and not member.deceased %}
       <button id="open-add-payment" type="button" class="btn-primary">Add Payment</button>
       {% endif %}
     </div>
@@ -44,7 +44,7 @@
   <p class="muted">This member is marked SK and cannot accept new payments.</p>
   {% endif %}
 
-  {% if not member.deceased %}
+  {% if not read_only and not member.deceased %}
   <dialog id="add-payment-dialog">
     <form method="dialog" class="dialog-close-corner-form">
       <button type="submit" class="dialog-close-corner-btn" aria-label="Cancel and close">×</button>
@@ -90,20 +90,24 @@
           <th>Membership Type</th>
           <th>Form #</th>
           <th>Notes</th>
+          {% if not read_only %}
           <th>Delete</th>
+          {% endif %}
         </tr>
       </thead>
       <tbody>
         {% for payment in payments %}
         <tr{% if payment.inherited %} class="payment-inherited-row"{% endif %}>
-          {% if payment.inherited %}
+          {% if payment.inherited or read_only %}
           <td>{{ payment.payment_date }}</td>
           <td>{{ payment.membership_year }}</td>
           <td>{{ payment.paid_through }}</td>
           <td>{% if payment.membership_type_display %}{{ payment.membership_type_display }}{% else %}—{% endif %}</td>
           <td>{% if payment.form_number %}{{ payment.form_number }}{% else %}—{% endif %}</td>
           <td class="payment-notes-cell">{{ payment.notes }}</td>
+          {% if not read_only %}
           <td></td>
+          {% endif %}
           {% else %}
           <td>
             <input class="payment-row-input" form="payment-row-{{ payment.id }}" name="payment_date" type="date" value="{{ payment.payment_date }}" required>

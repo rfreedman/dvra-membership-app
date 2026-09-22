@@ -7,6 +7,7 @@
   const APP_BASE = {{ base|tojson }};
   const MEMBERS_SORT_TOUCH_URL = {{ members_sort_touch_url|tojson }};
   const MEMBERS_NOTE_URL_PREFIX = {{ members_note_url_prefix|tojson }};
+  const READ_ONLY = {{ read_only|tojson }};
 
   const dash = "—";
   const form = document.getElementById("members-filter-form");
@@ -100,6 +101,7 @@
   }
 
   async function saveMemberNote(notes) {
+    if (READ_ONLY) return false;
     setNoteError("");
     const body = new URLSearchParams();
     body.set("notes", notes);
@@ -173,8 +175,9 @@
           const noteClass = hasNote
             ? "btn-primary members-note-btn members-note-btn--has"
             : "btn-primary members-note-btn";
+          const openLabel = READ_ONLY ? "View" : "Edit";
           return (
-            '<a class="btn-primary" href="' + viewHref + '">Edit</a>&nbsp;' +
+            '<a class="btn-primary" href="' + viewHref + '">' + openLabel + '</a>&nbsp;' +
             '<a class="btn-primary" href="' + payHref + '">Payments</a>&nbsp;' +
             '<button type="button" class="' + noteClass + '" data-member-id="' + id + '">Notes</button>'
           );

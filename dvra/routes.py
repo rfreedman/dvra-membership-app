@@ -36,6 +36,12 @@ def dispatch(conn: sqlite3.Connection, session: dict[str, Any], form: dict[str, 
         if denied is not None:
             return denied
 
+    if auth.is_read_only(session):
+        if method == "GET" and path == "/members/new":
+            return htt.redirect(htt.url_for("/"), status=303)
+        if not auth.is_read_only_allowed(method, path):
+            return htt.text("Read-only accounts cannot change records.", status=403)
+
     authed = _match_authed(method, path, ctx)
     if authed is not None:
         return authed
@@ -129,6 +135,17 @@ def _match_authed(method: str, path: str, ctx: RequestCtx) -> htt.Response | Non
     m = _m(path, r"/managers/(\d+)/delete")
     if method == "POST" and m:
         return admin_pages.handle_manager_delete(ctx, int(m.group(1)))
+    if method == "POST" and path == "/readonly-users/create":
+        return admin_pages.handle_readonly_create(ctx)
+    m = _m(path, r"/readonly-users/(\d+)/password")
+    if method == "POST" and m:
+        return admin_pages.handle_readonly_password(ctx, int(m.group(1)))
+    m = _m(path, r"/readonly-users/(\d+)/profile")
+    if method == "POST" and m:
+        return admin_pages.handle_readonly_profile(ctx, int(m.group(1)))
+    m = _m(path, r"/readonly-users/(\d+)/delete")
+    if method == "POST" and m:
+        return admin_pages.handle_readonly_delete(ctx, int(m.group(1)))
 
     if method == "GET" and path == "/members/export.csv":
         return member_pages.handle_members_export(ctx, "csv")

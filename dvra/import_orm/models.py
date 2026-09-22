@@ -48,6 +48,17 @@ class Manager(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
+class ReadonlyUser(Base):
+    __tablename__ = "readonly_users"
+    __table_args__ = (UniqueConstraint("username", name="uq_readonly_user_username"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(128), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(256), nullable=False)
+    display_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class Member(Base):
     __tablename__ = "members"
     __table_args__ = (

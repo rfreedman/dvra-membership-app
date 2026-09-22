@@ -3,9 +3,11 @@
   <div class="grid-page-top">
     <div class="member-page-header">
       <h2>Members</h2>
+      {% if not read_only %}
       <div class="member-page-actions">
         <a class="btn-primary" href="{{ url_for('/members/new') }}">New member</a>
       </div>
+      {% endif %}
     </div>
     <form method="post" action="{{ url_for('/') }}" class="filter-form" id="members-filter-form">
       <input type="hidden" name="sort_by" value="{{ sort_by }}">
@@ -88,11 +90,13 @@
   <h3 id="member-note-dialog-title">Member note</h3>
   <p id="member-note-dialog-error" class="error" hidden></p>
   <label class="full-width" for="member-note-textarea">Notes
-    <textarea id="member-note-textarea" rows="8" placeholder="Optional"></textarea>
+    <textarea id="member-note-textarea" rows="8"{% if not read_only %} placeholder="Optional"{% endif %}{% if read_only %} readonly{% endif %}></textarea>
   </label>
   <div class="form-actions-row">
+    {% if not read_only %}
     <button type="button" id="member-note-save" class="btn-primary">Save</button>
     <button type="button" id="member-note-clear" class="btn-danger">Clear</button>
-    <button type="button" id="member-note-cancel">Cancel</button>
+    {% endif %}
+    <button type="button" id="member-note-cancel">{% if read_only %}Close{% else %}Cancel{% endif %}</button>
   </div>
 </dialog>

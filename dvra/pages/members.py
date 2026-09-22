@@ -16,6 +16,7 @@ from dvra import join_extension
 from dvra import member_form_validation
 from dvra import new_ham
 from dvra import normalizer
+from dvra import auth
 from dvra.license_class import find_unlicensed_class_id, is_unlicensed_license_class_id
 from dvra import view
 from dvra.app_settings import AppSettingsRepository
@@ -165,6 +166,7 @@ def handle_members_list(ctx: RequestCtx) -> htt.Response:
     rows = repo.list_rows_for_tabulator({**filt, "sort_by": params["sort_by"], "sort_dir": params["sort_dir"]})
     members_json = member_list.tabulator_json_from_rows(rows)
     default_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
+    read_only = auth.is_read_only(ctx["session"])
     inner = view.render(
         "members.html",
         total=total,
@@ -179,6 +181,7 @@ def handle_members_list(ctx: RequestCtx) -> htt.Response:
         membership_year_options=myear.option_years(default_year),
         membership_types=repo.list_membership_types(),
         base=htt.app_base(),
+        read_only=read_only,
     )
     scripts = view.render(
         "members_tabulator_scripts.html",
@@ -188,6 +191,7 @@ def handle_members_list(ctx: RequestCtx) -> htt.Response:
         base=htt.app_base(),
         members_sort_touch_url=htt.url_for("/members/session-touch"),
         members_note_url_prefix=htt.url_for("/members"),
+        read_only=read_only,
     )
     tab_css = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.2/dist/css/tabulator.min.css">'
     return html_page(
@@ -288,14 +292,18 @@ def handle_member_view(ctx: RequestCtx, id_: int) -> htt.Response:
     member = members_repo.find_member_by_id(id_) if id_ > 0 else None
     if member is None:
         return member_not_found(ctx)
+    read_only = auth.is_read_only(ctx["session"])
     inner = view.render(
         "member_detail.html",
         member=member,
         error=None,
         base=htt.app_base(),
+        read_only=read_only,
         **_member_detail_template_ctx(ctx, member),
     )
-    scripts = view.render("member_detail_scripts.html")
+    scripts = ""
+    if not read_only:
+        scripts = view.render("member_detail_scripts.html")
     return html_page(inner, "Member", ctx, extra_scripts=scripts, active_nav="members")
 
 
@@ -306,6 +314,7 @@ def handle_member_edit(ctx: RequestCtx, id_: int) -> htt.Response:
         return member_not_found(ctx)
     row = normalizer.member_update_from_form(ctx["form"])
     scripts = view.render("member_detail_scripts.html")
+    read_only = auth.is_read_only(ctx["session"])
 
     def fail(msg: str, status: int) -> htt.Response:
         inner = view.render(
@@ -313,6 +322,7 @@ def handle_member_edit(ctx: RequestCtx, id_: int) -> htt.Response:
             member=member,
             error=msg,
             base=htt.app_base(),
+            read_only=read_only,
             **_member_detail_template_ctx(ctx, member),
         )
         return html_page(inner, "Member", ctx, extra_scripts=scripts, status=status, active_nav="members")
@@ -363,6 +373,7 @@ def handle_member_delete(ctx: RequestCtx, id_: int) -> htt.Response:
             member=member,
             error=str(exc),
             base=htt.app_base(),
+            read_only=auth.is_read_only(ctx["session"]),
             **_member_detail_template_ctx(ctx, member),
         )
         return html_page(inner, "Member", ctx, extra_scripts=scripts, status=400, active_nav="members")
@@ -519,6 +530,7 @@ def handle_member_payments(ctx: RequestCtx, id_: int) -> htt.Response:
     default_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
     include_type_ids = [member.get("membership_type_id")]
     include_type_ids.extend(p.get("membership_type_id") for p in payments)
+    read_only = auth.is_read_only(ctx["session"])
     inner = view.render(
         "member_payments.html",
         member=member,
@@ -534,6 +546,9 @@ def handle_member_payments(ctx: RequestCtx, id_: int) -> htt.Response:
         default_membership_year=default_year,
         membership_year_options=myear.option_years(default_year),
         base=htt.app_base(),
+        read_only=read_only,
     )
-    scripts = view.render("member_payments_scripts.html")
+    scripts = ""
+    if not read_only:
+        scripts = view.render("member_payments_scripts.html")
     return html_page(inner, "Payments", ctx, extra_scripts=scripts, active_nav="members")

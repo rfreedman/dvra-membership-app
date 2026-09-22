@@ -46,6 +46,7 @@ def handle_admin_get(ctx: RequestCtx) -> htt.Response:
         membership_types=membership_types,
         admin_users=accounts.list_admin_users(),
         managers=accounts.list_managers(),
+        readonly_users=accounts.list_readonly_users(),
     )
     return html_page(inner, "Admin", ctx, active_nav="admin")
 
@@ -286,6 +287,58 @@ def handle_manager_delete(ctx: RequestCtx, id_: int) -> htt.Response:
         return admin_redirect("Invalid manager.")
     try:
         AdminAccountRepository(ctx["conn"]).delete_manager(id_)
+    except sqlite3.IntegrityError as e:
+        return admin_redirect(ref_write_error(e) or str(e))
+    return admin_redirect()
+
+
+def handle_readonly_create(ctx: RequestCtx) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
+    username = str(ctx["form"].get("username") or "").strip()
+    password = str(ctx["form"].get("password") or "")
+    display_raw = str(ctx["form"].get("display_name") or "").strip()
+    display_name = display_raw or None
+    if username == "" or password.strip() == "":
+        return admin_redirect("Username and password are required.")
+    try:
+        AdminAccountRepository(ctx["conn"]).create_readonly_user(username, password, display_name)
+    except sqlite3.IntegrityError:
+        return admin_redirect("That username is already in use.")
+    return admin_redirect()
+
+
+def handle_readonly_password(ctx: RequestCtx, id_: int) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
+    password = str(ctx["form"].get("password") or "")
+    if id_ <= 0 or password.strip() == "":
+        return admin_redirect("Invalid read-only user or password.")
+    AdminAccountRepository(ctx["conn"]).update_readonly_password(id_, password)
+    return admin_redirect()
+
+
+def handle_readonly_profile(ctx: RequestCtx, id_: int) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
+    display_raw = str(ctx["form"].get("display_name") or "").strip()
+    if id_ <= 0:
+        return admin_redirect("Invalid read-only user.")
+    AdminAccountRepository(ctx["conn"]).update_readonly_profile(id_, display_raw or None)
+    return admin_redirect()
+
+
+def handle_readonly_delete(ctx: RequestCtx, id_: int) -> htt.Response:
+    denied = require_admin(ctx)
+    if denied is not None:
+        return denied
+    if id_ <= 0:
+        return admin_redirect("Invalid read-only user.")
+    try:
+        AdminAccountRepository(ctx["conn"]).delete_readonly_user(id_)
     except sqlite3.IntegrityError as e:
         return admin_redirect(ref_write_error(e) or str(e))
     return admin_redirect()

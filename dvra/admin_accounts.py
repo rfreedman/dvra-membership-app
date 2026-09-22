@@ -1,10 +1,24 @@
-"""Admin and manager account CRUD."""
+"""Admin, manager, and read-only account CRUD."""
 
 from __future__ import annotations
 
 import sqlite3
 
 from dvra.passwords import hash_password
+
+
+def _account_rows_with_display(rows: list) -> list[dict]:
+    out = []
+    for r in rows:
+        dn = r["display_name"]
+        out.append(
+            {
+                "id": int(r["id"]),
+                "username": str(r["username"]),
+                "display_name": str(dn) if dn else None,
+            }
+        )
+    return out
 
 
 class AdminAccountRepository:
@@ -29,7 +43,12 @@ class AdminAccountRepository:
         manager = self.conn.execute(
             "SELECT 1 FROM managers WHERE username = ? LIMIT 1", (name,)
         ).fetchone()
-        return manager is not None
+        if manager is not None:
+            return True
+        readonly = self.conn.execute(
+            "SELECT 1 FROM readonly_users WHERE username = ? LIMIT 1", (name,)
+        ).fetchone()
+        return readonly is not None
 
     def create_admin_user(self, username: str, raw_password: str) -> None:
         if self.username_taken(username):
@@ -58,17 +77,7 @@ class AdminAccountRepository:
         rows = self.conn.execute(
             "SELECT id, username, display_name FROM managers ORDER BY username ASC"
         ).fetchall()
-        out = []
-        for r in rows:
-            dn = r["display_name"]
-            out.append(
-                {
-                    "id": int(r["id"]),
-                    "username": str(r["username"]),
-                    "display_name": str(dn) if dn else None,
-                }
-            )
-        return out
+        return _account_rows_with_display(rows)
 
     def create_manager(self, username: str, raw_password: str, display_name: str | None) -> None:
         if self.username_taken(username):
@@ -97,4 +106,41 @@ class AdminAccountRepository:
 
     def delete_manager(self, manager_id: int) -> None:
         self.conn.execute("DELETE FROM managers WHERE id = ?", (manager_id,))
+        self.conn.commit()
+
+    def list_readonly_users(self) -> list[dict]:
+        rows = self.conn.execute(
+            "SELECT id, username, display_name FROM readonly_users ORDER BY username ASC"
+        ).fetchall()
+        return _account_rows_with_display(rows)
+
+    def create_readonly_user(
+        self, username: str, raw_password: str, display_name: str | None
+    ) -> None:
+        if self.username_taken(username):
+            raise sqlite3.IntegrityError("username already exists")
+        dn = display_name.strip() if display_name and display_name.strip() else None
+        self.conn.execute(
+            "INSERT INTO readonly_users (username, password_hash, display_name) VALUES (?, ?, ?)",
+            (username.strip(), hash_password(raw_password), dn),
+        )
+        self.conn.commit()
+
+    def update_readonly_password(self, user_id: int, raw_password: str) -> None:
+        self.conn.execute(
+            "UPDATE readonly_users SET password_hash = ? WHERE id = ?",
+            (hash_password(raw_password), user_id),
+        )
+        self.conn.commit()
+
+    def update_readonly_profile(self, user_id: int, display_name: str | None) -> None:
+        dn = display_name.strip() if display_name and display_name.strip() else None
+        self.conn.execute(
+            "UPDATE readonly_users SET display_name = ? WHERE id = ?",
+            (dn, user_id),
+        )
+        self.conn.commit()
+
+    def delete_readonly_user(self, user_id: int) -> None:
+        self.conn.execute("DELETE FROM readonly_users WHERE id = ?", (user_id,))
         self.conn.commit()
