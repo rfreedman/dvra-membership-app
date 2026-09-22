@@ -15,12 +15,13 @@ Default database: **`var/dvra_membership.sqlite`**.
 
 ## Roles
 
-Two account tables stay separate (`admin_users` and `managers`). Login looks up **admins first**, then managers (an overlapping username is treated as admin).
+Anyone who signs in uses one of three account types. Each type is stored in its own table (`admin_users`, `managers`, `readonly_users`). At login, the app checks those tables in that order; if the same username exists in more than one, the first match wins (admin over manager over read-only).
 
-- **Admin** — members, reports, payments, and **Admin** (reference data and account CRUD).
-- **Manager** — members, reports, and payments. No Admin nav; `/admin` and `/managers/*` redirect home.
+- **Admin** — Full use of the app: members, payments, and reports, plus the **Admin** page (settings, reference data, and creating or changing accounts).
+- **Manager** — Same day-to-day work as an admin (members, payments, reports), but no Admin page and no account management.
+- **Read-only** — Can browse members and payments and run reports (including changing filters and sorts). Cannot add or edit records, create members, or open Admin.
 
-Creating an admin or manager rejects a username that already exists in **either** table.
+Creating an account rejects a username that already exists in any of the three tables.
 
 ## Local run
 
