@@ -115,7 +115,7 @@ def _member_new_template_ctx(ctx: RequestCtx, body: dict[str, Any] | None = None
         "selected_paid_for_year": selected_year,
         "selected_membership_type_id": selected_membership_type_id,
         "call_sign_disabled": call_sign_disabled,
-        "membership_year_options": myear.option_years(default_year),
+        "membership_year_options": myear.option_years_from_db(ctx["conn"], default_year),
         "form_values": body or {},
     }
 
@@ -178,7 +178,7 @@ def handle_members_list(ctx: RequestCtx) -> htt.Response:
         current_only=params["current_only"],
         include_deceased=params.get("include_deceased") or "no",
         membership_year=year,
-        membership_year_options=myear.option_years(default_year),
+        membership_year_options=myear.option_years_from_db(ctx["conn"], default_year),
         membership_types=repo.list_membership_types(),
         base=htt.app_base(),
         read_only=read_only,
@@ -544,7 +544,7 @@ def handle_member_payments(ctx: RequestCtx, id_: int) -> htt.Response:
         if new_ham.member_has_new_ham_payment(ctx["conn"], id_)
         else None,
         default_membership_year=default_year,
-        membership_year_options=myear.option_years(default_year),
+        membership_year_options=myear.option_years_from_db(ctx["conn"], default_year),
         base=htt.app_base(),
         read_only=read_only,
     )

@@ -190,6 +190,12 @@ def _match_authed(method: str, path: str, ctx: RequestCtx) -> htt.Response | Non
 
     if method == "GET" and path == "/reports":
         return report_pages.handle_reports_index(ctx)
+    if method == "POST" and path == "/reports/membership":
+        return report_pages.handle_membership_report_post(ctx)
+    if method == "GET" and path == "/reports/membership":
+        return report_pages.handle_membership_report_get(ctx)
+    if method == "GET" and path == "/reports/membership/export.pdf":
+        return report_pages.handle_membership_report_export(ctx, "pdf")
     if method == "POST" and path == "/reports/payments":
         return report_pages.handle_payments_report_post(ctx)
     if method == "GET" and path == "/reports/payments":

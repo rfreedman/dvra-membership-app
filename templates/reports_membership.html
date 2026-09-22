@@ -1,0 +1,144 @@
+{% from '_export_links.html' import export_links %}
+<div class="standard-page-scroll membership-report-page">
+  <div class="member-page-header">
+    <h2>Membership report</h2>
+  </div>
+
+  <form method="post" action="{{ url_for('/reports/membership') }}" class="filter-form" id="membership-report-filter-form">
+    <div class="filter-grid">
+      <label>Membership year
+        <select name="membership_year" data-submit-on-change>
+          {% for y in membership_year_options %}
+          <option value="{{ y }}"{% if report.membership_year == y %} selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Month
+        <select name="calendar_month" data-submit-on-change>
+          {% for m in month_options %}
+          <option value="{{ m.value }}"{% if report.calendar_month == m.value %} selected{% endif %}>{{ m.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="filter-form-actions">
+      <button type="submit">Apply</button>
+    </div>
+  </form>
+
+  <div class="results-and-export-row report-export-row--after-heading">
+    <p class="results-meta">{{ report.report_heading }}</p>
+    {{ export_links('Export this report:', '/reports/membership/export', 'membership-report-exp-', include_csv=False, include_xlsx=False) }}
+  </div>
+
+  <div class="membership-report-layout">
+    <div class="membership-report-tables">
+      <table class="data-table membership-report-summary">
+        <thead>
+          <tr>
+            <th scope="col">Member Count</th>
+            <th scope="col" class="membership-report-total">{{ report.member_count }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in report.member_counts_by_month %}
+          <tr>
+            <td>{{ row.month_name }}</td>
+            <td>{{ row.count }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <table class="data-table membership-report-summary membership-report-arrl">
+        <thead>
+          <tr>
+            <th scope="col">License Class</th>
+            <th scope="col" class="membership-report-num">Count</th>
+            <th scope="col" class="membership-report-num">Pct.</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in report.license_class %}
+          <tr>
+            <td>{{ row.name }}</td>
+            <td class="membership-report-num">{{ row.count }}</td>
+            <td class="membership-report-num">{{ row.percent }}%</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="3" class="muted">No license class data</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <table class="data-table membership-report-summary">
+        <thead>
+          <tr>
+            <th scope="col">New Members This Month</th>
+            <th scope="col" class="membership-report-total">{{ report.new_members_month }}</th>
+          </tr>
+        </thead>
+      </table>
+
+      <table class="data-table membership-report-summary">
+        <thead>
+          <tr>
+            <th scope="col">New Members YTD</th>
+            <th scope="col" class="membership-report-total">{{ report.new_members_ytd_total }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in report.new_members_ytd %}
+          <tr>
+            <td>{{ row.month_name }}</td>
+            <td>{{ row.count }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <table class="data-table membership-report-summary membership-report-arrl">
+        <thead>
+          <tr>
+            <th scope="col">ARRL Membership</th>
+            <th scope="col" class="membership-report-num">Count</th>
+            <th scope="col" class="membership-report-num">Pct.</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Members</td>
+            <td class="membership-report-num">{{ report.arrl_members }}</td>
+            <td class="membership-report-num">{{ report.arrl_members_percent }}%</td>
+          </tr>
+          <tr>
+            <td>Non-Members</td>
+            <td class="membership-report-num">{{ report.arrl_non_members }}</td>
+            <td class="membership-report-num">{{ report.arrl_non_members_percent }}%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="membership-report-charts">
+      <div class="membership-report-chart-card">
+        <h3>Member Count by Month</h3>
+        <canvas id="membership-chart-member-count" aria-label="Member count by month chart"></canvas>
+      </div>
+      <div class="membership-report-chart-card">
+        <h3>License Class Distribution</h3>
+        <canvas id="membership-chart-license" aria-label="License class distribution chart"></canvas>
+      </div>
+      <div class="membership-report-chart-card">
+        <h3>New Member Enrollment</h3>
+        <canvas id="membership-chart-enrollment" aria-label="New member enrollment chart"></canvas>
+      </div>
+      <div class="membership-report-chart-card">
+        <h3>ARRL Membership</h3>
+        <canvas id="membership-chart-arrl" aria-label="ARRL membership pie chart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>

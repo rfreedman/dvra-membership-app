@@ -1,0 +1,213 @@
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script>
+(function () {
+  const CHARTS = {{ charts_json|safe }};
+  const blue = "#4a86e8";
+  const red = "#e06666";
+
+  if (typeof Chart !== "undefined" && typeof ChartDataLabels !== "undefined") {
+    Chart.register(ChartDataLabels);
+  }
+
+  function barChart(canvasId, labels, values, showCounts, percents) {
+    const el = document.getElementById(canvasId);
+    if (!el || typeof Chart === "undefined") return;
+    const pcts = percents || null;
+    new Chart(el, {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            data: values,
+            backgroundColor: blue,
+            borderWidth: 0,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false },
+          datalabels: showCounts
+            ? {
+                anchor: "center",
+                align: "center",
+                color: "#fff",
+                textAlign: "center",
+                font: { weight: "bold", size: pcts ? 11 : 12 },
+                clamp: true,
+                display: function (ctx) {
+                  const value = Number(ctx.dataset.data[ctx.dataIndex]) || 0;
+                  if (!value) return false;
+                  const yScale = ctx.chart.scales.y;
+                  if (!yScale) return true;
+                  const height = Math.abs(
+                    yScale.getPixelForValue(value) - yScale.getPixelForValue(0)
+                  );
+                  return height >= (pcts ? 28 : 16);
+                },
+                formatter: function (value, ctx) {
+                  if (!pcts) return String(value);
+                  const pct = pcts[ctx.dataIndex];
+                  if (pct === undefined || pct === null) return String(value);
+                  return value + "\n(" + pct + "%)";
+                },
+              }
+            : { display: false },
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { precision: 0 },
+          },
+        },
+      },
+    });
+  }
+
+  function lineChart(canvasId, labels, values) {
+    const el = document.getElementById(canvasId);
+    if (!el || typeof Chart === "undefined") return;
+    const nums = (values || []).map(function (v) {
+      return Number(v) || 0;
+    });
+    const ymax = nums.length ? Math.max.apply(null, nums) : 0;
+    new Chart(el, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            data: values,
+            borderColor: blue,
+            backgroundColor: blue,
+            borderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 4,
+            tension: 0.2,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        animation: false,
+        layout: {
+          padding: { top: 12 },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false },
+          datalabels: {
+            anchor: "end",
+            align: "top",
+            offset: 4,
+            color: "#333",
+            font: { weight: "bold", size: 11 },
+            clamp: false,
+            clip: false,
+            formatter: function (value) {
+              return value ? String(value) : "";
+            },
+          },
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            suggestedMax: ymax ? ymax * 1.15 : 1,
+            ticks: { precision: 0 },
+          },
+        },
+      },
+    });
+  }
+
+  function pieChart(canvasId, labels, values, percents) {
+    const el = document.getElementById(canvasId);
+    if (!el || typeof Chart === "undefined") return;
+    // Draw N then Y so sections are swapped; legend.reverse keeps key as Y, N.
+    const pieLabels = (labels || []).slice().reverse();
+    const pieValues = (values || []).slice().reverse();
+    const piePercents = (percents || []).slice().reverse();
+    new Chart(el, {
+      type: "pie",
+      data: {
+        labels: pieLabels,
+        datasets: [
+          {
+            data: pieValues,
+            backgroundColor: [red, blue],
+            borderWidth: 1,
+            borderColor: "#fff",
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: { position: "bottom", reverse: true },
+          datalabels: {
+            color: "#fff",
+            textAlign: "center",
+            font: { weight: "bold", size: 12 },
+            formatter: function (value, ctx) {
+              if (!value) return "";
+              const pct = piePercents[ctx.dataIndex];
+              if (pct === undefined || pct === null) return String(value);
+              return value + "\n(" + pct + "%)";
+            },
+          },
+        },
+      },
+    });
+  }
+
+  if (CHARTS && CHARTS.member_count) {
+    lineChart(
+      "membership-chart-member-count",
+      CHARTS.member_count.labels || [],
+      CHARTS.member_count.values || []
+    );
+  }
+  if (CHARTS && CHARTS.license_class) {
+    barChart(
+      "membership-chart-license",
+      CHARTS.license_class.labels || [],
+      CHARTS.license_class.values || [],
+      true,
+      CHARTS.license_class.percents || []
+    );
+  }
+  if (CHARTS && CHARTS.new_enrollment) {
+    barChart(
+      "membership-chart-enrollment",
+      CHARTS.new_enrollment.labels || [],
+      CHARTS.new_enrollment.values || [],
+      true
+    );
+  }
+  if (CHARTS && CHARTS.arrl) {
+    pieChart(
+      "membership-chart-arrl",
+      CHARTS.arrl.labels || [],
+      CHARTS.arrl.values || [],
+      CHARTS.arrl.percents || []
+    );
+  }
+
+  const form = document.getElementById("membership-report-filter-form");
+  if (form) {
+    form.querySelectorAll("[data-submit-on-change]").forEach(function (el) {
+      el.addEventListener("change", function () {
+        form.requestSubmit();
+      });
+    });
+  }
+})();
+</script>

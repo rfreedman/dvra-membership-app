@@ -3,11 +3,51 @@ from __future__ import annotations
 import sqlite3
 
 from dvra.app_settings import AppSettingsRepository
+from dvra import membership_year as myear
 from dvra.membership_year import paid_through_iso
 from dvra.payments import PaymentRepository
 from dvra.schema import ensure
 
 from tests.conftest import insert_member, memory_db
+
+
+def test_option_years_floors_at_min_year():
+    assert myear.option_years(2026)[0] == 2021
+    assert myear.option_years(2026, min_year=2024)[0] == 2024
+    assert myear.option_years(2026, min_year=2024)[-1] == 2031
+
+
+def test_earliest_membership_year_and_options_from_db():
+    conn = memory_db()
+    assert myear.earliest_membership_year(conn) is None
+    # Empty DB keeps center±span behavior.
+    assert myear.option_years_from_db(conn, 2026)[0] == 2021
+
+    mid = insert_member(conn)
+    PaymentRepository(conn).insert_payment(
+        mid,
+        {
+            "payment_date": "2024-06-01",
+            "membership_year": 2024,
+            "membership_type_id": None,
+            "notes": None,
+            "form_number": None,
+        },
+    )
+    PaymentRepository(conn).insert_payment(
+        mid,
+        {
+            "payment_date": "2026-01-01",
+            "membership_year": 2026,
+            "membership_type_id": None,
+            "notes": None,
+            "form_number": None,
+        },
+    )
+    assert myear.earliest_membership_year(conn) == 2024
+    years = myear.option_years_from_db(conn, 2026)
+    assert years[0] == 2024
+    assert 2026 in years
 
 
 def test_settings_seeded_and_settable():

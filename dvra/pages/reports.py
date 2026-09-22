@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import json
+
 from dvra import exports
 from dvra import http as htt
 from dvra import list_params
+from dvra import membership_report
+from dvra import membership_report_export
 from dvra import membership_year as myear
 from dvra import payments_report
 from dvra import reports as reports_mod
 from dvra import view
 from dvra.app_settings import AppSettingsRepository
 from dvra.context import RequestCtx
+from dvra.membership_report import MembershipReportRepository
 from dvra.pages.common import download_export, html_page
 from dvra.payments_report import PaymentsReportRepository
 from dvra.reports import ReportsRepository
@@ -66,7 +71,7 @@ def handle_payments_report_get(ctx: RequestCtx) -> htt.Response:
         paid_through_start=params["paid_through_start"],
         paid_through_end=params["paid_through_end"],
         membership_year=year_display,
-        membership_year_options=myear.option_years(default_year),
+        membership_year_options=myear.option_years_from_db(ctx["conn"], default_year),
         sort_by=params["sort_by"],
         sort_dir=params["sort_dir"],
         payments_report_sort_post=sort_post,
@@ -147,7 +152,7 @@ def handle_roster_name_get(ctx: RequestCtx) -> htt.Response:
         total=len(rows),
         rows=rows,
         membership_year=year,
-        membership_year_options=myear.option_years(default_year),
+        membership_year_options=myear.option_years_from_db(ctx["conn"], default_year),
         roster_post_action=htt.url_for("/reports/roster-by-name"),
         base=htt.app_base(),
     )
@@ -164,7 +169,7 @@ def handle_roster_callsign_get(ctx: RequestCtx) -> htt.Response:
         total=len(rows),
         rows=rows,
         membership_year=year,
-        membership_year_options=myear.option_years(default_year),
+        membership_year_options=myear.option_years_from_db(ctx["conn"], default_year),
         roster_post_action=htt.url_for("/reports/roster-by-callsign"),
         base=htt.app_base(),
     )
@@ -309,7 +314,7 @@ def handle_paid_memberships_get(ctx: RequestCtx) -> htt.Response:
         total=len(rows),
         rows=rows,
         membership_year=year,
-        membership_year_options=myear.option_years(default_year),
+        membership_year_options=myear.option_years_from_db(ctx["conn"], default_year),
         sort_by=params["sort_by"],
         sort_dir=params["sort_dir"],
         sort_post=_year_memberships_sort_post(params),
@@ -339,7 +344,7 @@ def handle_unpaid_memberships_get(ctx: RequestCtx) -> htt.Response:
         total=len(rows),
         rows=rows,
         membership_year=year,
-        membership_year_options=myear.option_years(default_year),
+        membership_year_options=myear.option_years_from_db(ctx["conn"], default_year),
         sort_by=params["sort_by"],
         sort_dir=params["sort_dir"],
         sort_post=_year_memberships_sort_post(params),
@@ -384,4 +389,68 @@ def handle_unpaid_memberships_export(ctx: RequestCtx, fmt: str) -> htt.Response:
         csv_bytes=lambda: exports.membership_status_csv(rows),
         xlsx_bytes=lambda: exports.membership_status_xlsx(rows, "Unpaid memberships"),
         pdf_bytes=lambda: exports.membership_status_pdf(rows, "Unpaid memberships"),
+    )
+
+
+def _membership_report_filters(ctx: RequestCtx) -> dict:
+    default_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
+    persisted = list_params.membership_report_read(ctx["session"])
+    filters = membership_report.parse_membership_report_query(
+        persisted, default_membership_year=default_year
+    )
+    list_params.membership_report_persist(ctx["session"], filters)
+    return filters
+
+
+def handle_membership_report_post(ctx: RequestCtx) -> htt.Response:
+    default_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
+    flat = list_params.membership_report_merge_post(ctx["session"], ctx["form"])
+    filters = membership_report.parse_membership_report_query(
+        flat, default_membership_year=default_year
+    )
+    list_params.membership_report_persist(ctx["session"], filters)
+    return htt.redirect(htt.url_for("/reports/membership"))
+
+
+def handle_membership_report_get(ctx: RequestCtx) -> htt.Response:
+    filters = _membership_report_filters(ctx)
+    report = MembershipReportRepository(ctx["conn"]).build_report(filters)
+    default_year = AppSettingsRepository(ctx["conn"]).get_current_membership_year()
+    charts_json = json.dumps(report["charts"])
+    scripts = view.render(
+        "reports_membership_scripts.html",
+        charts_json=charts_json,
+        base=htt.app_base(),
+    )
+    inner = view.render(
+        "reports_membership.html",
+        report=report,
+        membership_year_options=membership_report.membership_report_year_options(
+            default_year,
+            min_year=myear.earliest_membership_year(ctx["conn"]),
+        ),
+        month_options=membership_report.membership_report_month_options(
+            int(report["membership_year"])
+        ),
+        base=htt.app_base(),
+    )
+    return html_page(
+        inner,
+        "Membership report",
+        ctx,
+        active_nav="reports",
+        extra_scripts=scripts,
+    )
+
+
+def handle_membership_report_export(ctx: RequestCtx, fmt: str) -> htt.Response:
+    if fmt != "pdf":
+        return htt.text("Not found", status=404)
+    filters = _membership_report_filters(ctx)
+    report = MembershipReportRepository(ctx["conn"]).build_report(filters)
+    stem = exports.timestamp_stem("membership-report", compact=True)
+    return htt.download(
+        membership_report_export.membership_report_pdf(report),
+        "application/pdf",
+        f"{stem}.pdf",
     )

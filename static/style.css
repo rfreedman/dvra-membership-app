@@ -1548,3 +1548,74 @@ button.password-reveal-toggle:focus-visible {
 .password-reveal-toggle svg.is-hidden {
   display: none;
 }
+
+/* Membership report dashboard */
+.membership-report-layout {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  margin-top: 0.75rem;
+}
+
+.membership-report-tables {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.membership-report-summary {
+  width: 100%;
+  margin: 0;
+}
+
+.membership-report-summary thead {
+  background: #6b7280;
+  color: #fff;
+}
+
+.membership-report-summary thead th {
+  background: #6b7280;
+  color: #fff;
+  border-color: #6b7280;
+}
+
+.membership-report-summary th.membership-report-total,
+.membership-report-summary th.membership-report-num,
+.membership-report-summary td.membership-report-num,
+.membership-report-summary td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.membership-report-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.membership-report-chart-card {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  padding: 0.75rem 1rem 1rem;
+}
+
+.membership-report-chart-card h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.membership-report-chart-card canvas {
+  width: 100% !important;
+  max-height: 16rem;
+}
+
+@media (max-width: 900px) {
+  .membership-report-layout {
+    grid-template-columns: 1fr;
+  }
+}

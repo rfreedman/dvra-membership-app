@@ -110,4 +110,5 @@ def is_read_only_allowed(method: str, path: str) -> bool:
         "/reports/new-members",
         "/reports/paid-memberships",
         "/reports/unpaid-memberships",
+        "/reports/membership",
     )

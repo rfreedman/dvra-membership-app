@@ -41,7 +41,7 @@ def handle_admin_get(ctx: RequestCtx) -> htt.Response:
         current_membership_year=current_year,
         new_member_extension_start=new_member_extension_start,
         new_ham_extension_start=new_ham_extension_start,
-        membership_year_options=myear.option_years(current_year),
+        membership_year_options=myear.option_years_from_db(ctx["conn"], current_year),
         license_classes=license_classes,
         membership_types=membership_types,
         admin_users=accounts.list_admin_users(),

@@ -17,6 +17,7 @@ ROSTER_KEY = "dvra_roster_report_membership_year"
 NEW_MEMBERS_KEY = "dvra_new_members_report"
 PAID_MEMBERSHIPS_KEY = "dvra_paid_memberships_report"
 UNPAID_MEMBERSHIPS_KEY = "dvra_unpaid_memberships_report"
+MEMBERSHIP_REPORT_KEY = "dvra_membership_report"
 
 
 def members_persist(session: dict[str, Any], parsed: dict[str, Any]) -> None:
@@ -144,3 +145,17 @@ def unpaid_memberships_read(session: dict[str, Any]) -> dict[str, Any]:
 
 def unpaid_memberships_merge_post(session: dict[str, Any], body: dict[str, Any]) -> dict[str, Any]:
     return session_query.merge_post(session, UNPAID_MEMBERSHIPS_KEY, body, None)
+
+
+def membership_report_persist(session: dict[str, Any], parsed: dict[str, Any]) -> None:
+    from dvra.membership_report import filters_to_session
+
+    session_query.write(session, MEMBERSHIP_REPORT_KEY, filters_to_session(parsed))
+
+
+def membership_report_read(session: dict[str, Any]) -> dict[str, Any]:
+    return session_query.read(session, MEMBERSHIP_REPORT_KEY)
+
+
+def membership_report_merge_post(session: dict[str, Any], body: dict[str, Any]) -> dict[str, Any]:
+    return session_query.merge_post(session, MEMBERSHIP_REPORT_KEY, body, None)

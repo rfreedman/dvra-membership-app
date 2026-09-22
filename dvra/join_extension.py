@@ -73,6 +73,25 @@ def sql_exists_payment_current_for_year(
     return "COALESCE(m.deceased, 0) = 0 AND " + exists
 
 
+def sql_exists_payment_current_for_year_as_of(
+    payment_alias: str = "pay", *, include_deceased: bool = False
+) -> str:
+    """Like sql_exists_payment_current_for_year, but only payments on or before an as-of date.
+
+    Bind three ? params: membership year Y, Y again, as_of ISO date (payment_date <= as_of).
+    """
+    a = payment_alias
+    predicate = f"""
+        {a}.membership_year <= ?
+        AND date({a}.paid_through) >= date(printf('%04d-12-31', ?))
+        AND date({a}.payment_date) <= date(?)
+    """
+    exists = family.sql_exists_own_or_family_payment(a, predicate)
+    if include_deceased:
+        return exists
+    return "COALESCE(m.deceased, 0) = 0 AND " + exists
+
+
 def _extension_note(
     conn: sqlite3.Connection,
     join_date: date,
