@@ -54,7 +54,7 @@ Settings load from the process environment. If a **`.env`** file exists in the r
 | `DVRA_ADMIN_PASSWORD` | Bootstrap admin password when `admin_users` is empty | `admin123` |
 | `DVRA_DISPLAY_ERRORS` | Include a traceback in HTTP 500 responses (`1` / `true` / `yes` / `on`) | off |
 | `DVRA_SESSION_COOKIE` | Session cookie name | `dvra_session` |
-| `DVRA_SESSION_MAX_AGE` | Session cookie Max-Age in seconds | `2592000` (30 days) |
+| `DVRA_SESSION_MAX_AGE` | Session cookie Max-Age in seconds | `86400` (24 hours) |
 | `DVRA_ROSTER_CORS_ORIGIN` | `Access-Control-Allow-Origin` for the public roster JSON API (`www` and apex counterparts are also accepted) | `https://w2zq.com` |
 
 PDF fonts, membership year range (2000–2100), and the Tabulator CDN URL are code constants, not env.

@@ -43,11 +43,11 @@ class Settings:
         _load_optional_dotenv()
         dsn = os.environ.get("DATABASE_DSN") or f"sqlite:{DEFAULT_SQLITE_PATH}"
         try:
-            max_age = int(_nz(os.environ.get("DVRA_SESSION_MAX_AGE"), "2592000"))
+            max_age = int(_nz(os.environ.get("DVRA_SESSION_MAX_AGE"), "86400"))
         except ValueError:
-            max_age = 2592000
+            max_age = 86400
         if max_age < 0:
-            max_age = 2592000
+            max_age = 86400
         return cls(
             database_dsn=dsn.strip(),
             admin_username=_nz(os.environ.get("DVRA_ADMIN_USERNAME"), "admin"),
