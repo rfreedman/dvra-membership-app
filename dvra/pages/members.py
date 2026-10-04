@@ -117,6 +117,7 @@ def _member_new_template_ctx(ctx: RequestCtx, body: dict[str, Any] | None = None
         "call_sign_disabled": call_sign_disabled,
         "membership_year_options": myear.option_years_from_db(ctx["conn"], default_year),
         "form_values": body or {},
+        "default_payment_date": date.today().isoformat(),
     }
 
 
@@ -137,9 +138,28 @@ def _rollover_flash(
         "form_number": data["form_number"] or "",
         "notes": data["notes"] or "",
     }
+    if data.get("paid_through"):
+        flash["paid_through"] = data["paid_through"]
     if payment_id is not None:
         flash["payment_id"] = payment_id
     return flash
+
+
+def _submitted_payment_date(body: dict[str, Any]) -> tuple[date | None, str | None]:
+    """Parse payment_date from a create-member post.
+
+    A missing key means the caller may fall back to today's date (older clients).
+    A present key must be a valid calendar date.
+    """
+    if "payment_date" not in body:
+        return None, None
+    raw = str(body.get("payment_date") or "").strip()
+    if raw == "":
+        return None, "Payment date is required."
+    parsed = normalizer.parse_iso_date(raw)
+    if parsed is None:
+        return None, "Invalid payment date."
+    return date.fromisoformat(parsed), None
 
 
 def handle_members_filter_post(ctx: RequestCtx) -> htt.Response:
@@ -260,9 +280,17 @@ def handle_member_new_post(ctx: RequestCtx) -> htt.Response:
         confirmed_delete = str(body.get("confirm_delete_current_year_payment") or "") == "1"
         if covered_by_current and not confirmed_delete:
             return fail(family.covered_by_delete_current_payment_confirm(current_year), 400)
+        will_record_payment = (
+            paid_year is not None and not row.get("deceased") and not covered_by_current
+        )
+        join_date: date | None = None
+        if will_record_payment:
+            submitted_date, date_err = _submitted_payment_date(body)
+            if "payment_date" in body and date_err:
+                return fail(date_err, 400)
+            join_date = submitted_date if submitted_date is not None else _new_member_join_date()
         new_id = members_repo.insert_member(row)
-        if paid_year is not None and not row.get("deceased") and not covered_by_current:
-            join_date = _new_member_join_date()
+        if will_record_payment and join_date is not None:
             initial = join_extension.resolve_new_member_initial_payment(
                 ctx["conn"],
                 join_date,

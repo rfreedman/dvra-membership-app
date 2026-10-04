@@ -759,6 +759,67 @@ h2 {
   line-height: 1.35;
 }
 
+.data-table input[type="date"].payment-row-input {
+  min-width: 9.5rem;
+}
+
+.payment-row-save {
+  font-family: var(--font-ui);
+  cursor: pointer;
+  background: var(--color-header-top);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.35rem 0.75rem;
+  white-space: nowrap;
+}
+
+.payment-row-save:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.payment-row-save:not(:disabled):hover {
+  background: var(--color-header-bottom);
+}
+
+.payment-unsaved-dialog {
+  width: min(28rem, calc(100vw - 2rem));
+  max-width: 100%;
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: 6px;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.payment-unsaved-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.payment-unsaved-dialog h3 {
+  margin-top: 0;
+}
+
+.payment-unsaved-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.payment-unsaved-actions button {
+  font-family: var(--font-ui);
+  cursor: pointer;
+  background: var(--color-header-top);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.45rem 0.9rem;
+}
+
+.payment-unsaved-actions button:hover {
+  background: var(--color-header-bottom);
+}
+
 .members-tabulator-wrap.tabulator .tabulator-row .tabulator-cell.members-col-fixed-data {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-variant-numeric: tabular-nums;

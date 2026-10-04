@@ -20,6 +20,9 @@
     <form method="post" action="{{ confirm_action }}" class="inline-form">
       <input type="hidden" name="confirm_year_rollover" value="1">
       <input type="hidden" name="payment_date" value="{{ rollover.payment_date }}">
+      {% if rollover.paid_through %}
+      <input type="hidden" name="paid_through" value="{{ rollover.paid_through }}">
+      {% endif %}
       <input type="hidden" name="membership_year" value="{{ req_y }}">
       <input type="hidden" name="membership_type" value="{{ rollover.membership_type }}">
       <input type="hidden" name="form_number" value="{{ rollover.form_number }}">
@@ -79,6 +82,20 @@
   </dialog>
   {% endif %}
 
+  {% if not read_only %}
+  <dialog id="payment-unsaved-dialog" class="payment-unsaved-dialog" aria-labelledby="payment-unsaved-title">
+    <form method="dialog" class="dialog-close-corner-form">
+      <button type="submit" class="dialog-close-corner-btn" aria-label="Stay on this page">×</button>
+    </form>
+    <h3 id="payment-unsaved-title">Unsaved payment changes</h3>
+    <p>Payment changes have not been saved. If you continue, those changes will be lost.</p>
+    <div class="payment-unsaved-actions">
+      <button type="button" id="payment-unsaved-stay">Stay</button>
+      <button type="button" id="payment-unsaved-continue" class="btn-danger">Continue and lose changes</button>
+    </div>
+  </dialog>
+  {% endif %}
+
   {% if payments %}
   <div class="data-table-scroll">
     <table class="data-table">
@@ -91,6 +108,7 @@
           <th>Form #</th>
           <th>Notes</th>
           {% if not read_only %}
+          <th>Save</th>
           <th>Delete</th>
           {% endif %}
         </tr>
@@ -107,6 +125,7 @@
           <td class="payment-notes-cell">{{ payment.notes }}</td>
           {% if not read_only %}
           <td></td>
+          <td></td>
           {% endif %}
           {% else %}
           <td>
@@ -122,7 +141,9 @@
               {% endif %}
             </select>
           </td>
-          <td>{{ payment.paid_through }}</td>
+          <td>
+            <input class="payment-row-input" form="payment-row-{{ payment.id }}" name="paid_through" type="date" value="{{ payment.paid_through }}" required>
+          </td>
           <td>
             <select class="payment-row-input" form="payment-row-{{ payment.id }}" name="membership_type">
               <option value="">—</option>
@@ -138,7 +159,10 @@
           </td>
           <td class="payment-notes-cell">
             <textarea class="payment-row-input payment-notes-input" form="payment-row-{{ payment.id }}" name="notes" rows="3">{{ payment.notes or '' }}</textarea>
-            <form id="payment-row-{{ payment.id }}" method="post" action="{{ url_for('/payments/' ~ payment.id ~ '/edit') }}"></form>
+            <form id="payment-row-{{ payment.id }}" class="payment-edit-form" method="post" action="{{ url_for('/payments/' ~ payment.id ~ '/edit') }}"></form>
+          </td>
+          <td>
+            <button type="submit" class="payment-row-save" form="payment-row-{{ payment.id }}" disabled>Save</button>
           </td>
           <td>
             <form method="post" action="{{ url_for('/payments/' ~ payment.id ~ '/delete') }}">

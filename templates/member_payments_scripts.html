@@ -14,14 +14,183 @@
     });
   }
 
-  const inputs = document.querySelectorAll(".payment-row-input");
-  for (let i = 0; i < inputs.length; i++) {
-    inputs[i].addEventListener("change", function () {
-      const input = this;
-      if (input.form) {
-        input.form.requestSubmit();
-      }
+  const leaveDialog = document.getElementById("payment-unsaved-dialog");
+  const stayBtn = document.getElementById("payment-unsaved-stay");
+  const continueBtn = document.getElementById("payment-unsaved-continue");
+  const editForms = Array.prototype.slice.call(document.querySelectorAll("form.payment-edit-form"));
+  if (!leaveDialog || !stayBtn || !continueBtn || !editForms.length) {
+    return;
+  }
+
+  const LEAVE_MSG = "Payment changes have not been saved. If you leave, those changes will be lost.";
+  const baselines = new Map();
+  let allowLeave = false;
+  let pendingHref = null;
+  let pendingForm = null;
+
+  function formSnapshot(form) {
+    const fd = new FormData(form);
+    const pairs = [];
+    fd.forEach(function (val, key) {
+      pairs.push(key + "\0" + val);
+    });
+    pairs.sort();
+    return pairs.join("\n");
+  }
+
+  function isDirty(form) {
+    return formSnapshot(form) !== baselines.get(form);
+  }
+
+  function anyDirty() {
+    return editForms.some(isDirty);
+  }
+
+  function anyOtherDirty(form) {
+    return editForms.some(function (other) {
+      return other !== form && isDirty(other);
     });
   }
+
+  function saveButton(form) {
+    return document.querySelector('button.payment-row-save[form="' + form.id + '"]');
+  }
+
+  function syncSaveState(form) {
+    const btn = saveButton(form);
+    if (btn) {
+      btn.disabled = !isDirty(form);
+    }
+  }
+
+  function syncAllSaveStates() {
+    editForms.forEach(syncSaveState);
+  }
+
+  editForms.forEach(function (form) {
+    baselines.set(form, formSnapshot(form));
+  });
+  syncAllSaveStates();
+
+  function onFieldEdited(e) {
+    const field = e.target;
+    const form = field && field.form;
+    if (form && form.classList.contains("payment-edit-form")) {
+      syncSaveState(form);
+    }
+  }
+  document.addEventListener("input", onFieldEdited);
+  document.addEventListener("change", onFieldEdited);
+
+  function openLeaveDialog(href, form) {
+    pendingHref = href;
+    pendingForm = form;
+    if (typeof leaveDialog.showModal === "function") {
+      leaveDialog.showModal();
+    }
+  }
+
+  function clearPending() {
+    pendingHref = null;
+    pendingForm = null;
+  }
+
+  stayBtn.addEventListener("click", function () {
+    leaveDialog.close();
+  });
+
+  leaveDialog.addEventListener("close", function () {
+    if (!allowLeave) {
+      clearPending();
+    }
+  });
+
+  continueBtn.addEventListener("click", function () {
+    const href = pendingHref;
+    const form = pendingForm;
+    clearPending();
+    allowLeave = true;
+    leaveDialog.close();
+    if (form) {
+      if (typeof form.requestSubmit === "function") {
+        form.requestSubmit();
+      } else {
+        form.submit();
+      }
+    } else if (href) {
+      window.location.assign(href);
+    }
+  });
+
+  document.addEventListener("submit", function (e) {
+    const form = e.target;
+    if (!(form instanceof HTMLFormElement) || allowLeave) {
+      return;
+    }
+    if (form.classList.contains("payment-edit-form")) {
+      if (!isDirty(form)) {
+        e.preventDefault();
+        return;
+      }
+      if (anyOtherDirty(form)) {
+        e.preventDefault();
+        openLeaveDialog(null, form);
+        return;
+      }
+      allowLeave = true;
+      return;
+    }
+    if (form.getAttribute("method") === "dialog") {
+      return;
+    }
+    if (!anyDirty()) {
+      return;
+    }
+    e.preventDefault();
+    openLeaveDialog(null, form);
+  }, true);
+
+  document.addEventListener("click", function (e) {
+    if (allowLeave || !anyDirty() || e.defaultPrevented) {
+      return;
+    }
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
+      return;
+    }
+    const anchor = e.target.closest("a[href]");
+    if (!anchor || anchor.hasAttribute("download")) {
+      return;
+    }
+    if (anchor.target && anchor.target !== "_self") {
+      return;
+    }
+    let url;
+    try {
+      url = new URL(anchor.href, window.location.href);
+    } catch (err) {
+      return;
+    }
+    if (url.protocol === "javascript:") {
+      return;
+    }
+    if (
+      url.origin === window.location.origin
+      && url.pathname === window.location.pathname
+      && url.search === window.location.search
+    ) {
+      return;
+    }
+    e.preventDefault();
+    openLeaveDialog(anchor.href, null);
+  }, true);
+
+  window.addEventListener("beforeunload", function (e) {
+    if (allowLeave || !anyDirty()) {
+      return;
+    }
+    e.preventDefault();
+    e.returnValue = LEAVE_MSG;
+    return LEAVE_MSG;
+  });
 })();
 </script>

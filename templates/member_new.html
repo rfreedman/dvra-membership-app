@@ -91,6 +91,10 @@
       <input id="new-key" class="member-form-control no-spinner" name="key_number" type="number" min="0" step="1" placeholder="optional" value="{{ form_values.get('key_number', '') }}">
     </div>
     <div class="member-form-field">
+      <label for="new-payment-date">Payment date</label>
+      <input id="new-payment-date" class="member-form-control" name="payment_date" type="date" required value="{% if 'payment_date' in form_values %}{{ form_values.payment_date }}{% else %}{{ default_payment_date }}{% endif %}">
+    </div>
+    <div class="member-form-field">
       <label for="new-paid-for-year">Paid for year</label>
       <select id="new-paid-for-year" class="member-form-control" name="paid_for_year" required>
         {% for y in membership_year_options %}

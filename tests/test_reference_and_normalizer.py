@@ -19,6 +19,25 @@ def test_payment_from_form_requires_year():
     ok = payment_from_form({"payment_date": "2026-01-02", "membership_year": "2026"})
     assert ok["ok"] is True
     assert ok["data"]["membership_year"] == 2026
+    assert "paid_through" not in ok["data"]
+
+
+def test_payment_from_form_accepts_paid_through():
+    ok = payment_from_form(
+        {"payment_date": "2026-01-02", "membership_year": "2026", "paid_through": "2027-12-31"}
+    )
+    assert ok["ok"] is True
+    assert ok["data"]["paid_through"] == "2027-12-31"
+    blank = payment_from_form(
+        {"payment_date": "2026-01-02", "membership_year": "2026", "paid_through": ""}
+    )
+    assert blank["ok"] is False
+    assert blank["error"] == "Paid through date is required."
+    bad = payment_from_form(
+        {"payment_date": "2026-01-02", "membership_year": "2026", "paid_through": "12/31/2027"}
+    )
+    assert bad["ok"] is False
+    assert bad["error"] == "Invalid paid through date."
 
 
 def test_membership_type_delete_blocked_when_used_by_payment():

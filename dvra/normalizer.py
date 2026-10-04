@@ -97,7 +97,7 @@ def member_update_from_form(body: dict[str, Any]) -> dict[str, Any]:
     return parsed
 
 
-def _parse_iso_date(raw: str) -> str | None:
+def parse_iso_date(raw: str) -> str | None:
     trimmed = raw.strip()
     if trimmed == "":
         return None
@@ -114,7 +114,7 @@ def payment_from_form(body: dict[str, Any]) -> dict[str, Any]:
     pd_raw = _form_str(body, "payment_date").strip()
     if pd_raw == "":
         return {"ok": False, "error": "Payment date is required."}
-    payment_date = _parse_iso_date(pd_raw)
+    payment_date = parse_iso_date(pd_raw)
     if payment_date is None:
         return {"ok": False, "error": "Invalid payment date."}
     year = myear.parse_year_input(body.get("membership_year"))
@@ -124,17 +124,22 @@ def payment_from_form(body: dict[str, Any]) -> dict[str, Any]:
     membership_type_id = int(mt_raw) if mt_raw.isdigit() else None
     notes_raw = _form_str(body, "notes").strip()
     fn_raw = _form_str(body, "form_number").strip()
-    return {
-        "ok": True,
-        "error": "",
-        "data": {
-            "payment_date": payment_date,
-            "membership_year": year,
-            "membership_type_id": membership_type_id,
-            "notes": notes_raw or None,
-            "form_number": fn_raw or None,
-        },
+    data: dict[str, Any] = {
+        "payment_date": payment_date,
+        "membership_year": year,
+        "membership_type_id": membership_type_id,
+        "notes": notes_raw or None,
+        "form_number": fn_raw or None,
     }
+    if "paid_through" in body:
+        pt_raw = _form_str(body, "paid_through").strip()
+        if pt_raw == "":
+            return {"ok": False, "error": "Paid through date is required."}
+        paid_through = parse_iso_date(pt_raw)
+        if paid_through is None:
+            return {"ok": False, "error": "Invalid paid through date."}
+        data["paid_through"] = paid_through
+    return {"ok": True, "error": "", "data": data}
 
 
 def reference_label(name: str | None) -> str:
