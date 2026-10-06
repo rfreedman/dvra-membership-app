@@ -52,16 +52,16 @@ def test_resolve_regular_september_general_extension_only():
     assert out["notes"] == join_extension.NEW_MEMBER_EXTENSION_NOTE
 
 
-def test_resolve_new_ham_september_uses_general_note_only():
+def test_resolve_new_ham_september_skips_regular_extension():
     conn = memory_db()
     nh = new_ham.find_type_id(conn)
     assert nh is not None
     out = join_extension.resolve_new_member_initial_payment(
         conn, date(2026, 9, 15), nh, 2026
     )
-    assert out["paid_through"] == "2027-12-31"
-    assert new_ham.NEW_HAM_FREE_YEAR_NOTE in (out["notes"] or "")
-    assert join_extension.NEW_MEMBER_EXTENSION_NOTE in (out["notes"] or "")
+    assert out["paid_through"] == "2026-12-31"
+    assert out["notes"] == new_ham.NEW_HAM_FREE_YEAR_NOTE
+    assert join_extension.NEW_MEMBER_EXTENSION_NOTE not in (out["notes"] or "")
     assert join_extension.NEW_HAM_EXTENSION_NOTE not in (out["notes"] or "")
 
 
@@ -79,13 +79,21 @@ def test_custom_threshold_from_settings():
     conn = memory_db()
     settings = AppSettingsRepository(conn)
     settings.set_new_member_extension_start("09-01")
+    ReferenceDataRepository(conn).create_membership_type("Regular")
+    rid = int(
+        conn.execute("SELECT id FROM membership_types WHERE name = 'Regular'").fetchone()[0]
+    )
     nh = new_ham.find_type_id(conn)
     assert nh is not None
     assert not join_extension.in_late_join_window(date(2026, 8, 31), settings.get_new_member_extension_start())
     out = join_extension.resolve_new_member_initial_payment(
-        conn, date(2026, 9, 1), nh, 2026
+        conn, date(2026, 9, 1), rid, 2026
     )
     assert out["paid_through"] == "2027-12-31"
+    new_ham_out = join_extension.resolve_new_member_initial_payment(
+        conn, date(2026, 9, 1), nh, 2026
+    )
+    assert new_ham_out["paid_through"] == "2026-12-31"
 
 
 @patch("dvra.pages.members._new_member_join_date", return_value=date(2026, 11, 12))

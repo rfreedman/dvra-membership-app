@@ -102,8 +102,10 @@ def _extension_note(
     settings = AppSettingsRepository(conn)
     nh_id = new_ham.find_type_id(conn)
     is_new_ham = nh_id is not None and membership_type_id == nh_id
-    if is_new_ham and in_late_join_window(join_date, settings.get_new_ham_extension_start()):
-        return NEW_HAM_EXTENSION_NOTE
+    if is_new_ham:
+        if in_late_join_window(join_date, settings.get_new_ham_extension_start()):
+            return NEW_HAM_EXTENSION_NOTE
+        return None
     if in_late_join_window(join_date, settings.get_new_member_extension_start()):
         return NEW_MEMBER_EXTENSION_NOTE
     return None
