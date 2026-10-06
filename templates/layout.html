@@ -14,7 +14,9 @@
       <a href="{{ url_for('/') }}" aria-label="DVRA Membership Manager home">
         <img class="site-header-logo" src="/static/w2zq-site-icon-gold.png" alt="" width="48" height="48">
       </a>
-      <h1><a href="{{ url_for('/') }}">DVRA Membership Manager</a></h1>
+      <div class="site-header-title-block">
+        <h1><a href="{{ url_for('/') }}">DVRA Membership Manager</a><span class="site-header-version">v{{ app_version }}</span></h1>
+      </div>
     </div>
     <nav class="site-nav">
       {% if authenticated %}
@@ -36,5 +38,55 @@
 <script src="/static/scroll-panels.js"></script>
 <script src="/static/export-links.js"></script>
 {{ extra_scripts_html|safe }}
+<script>
+(function () {
+  function alignHeaderVersion() {
+    var titleLink = document.querySelector(".site-header-brand-row h1 a");
+    var version = document.querySelector(".site-header-version");
+    if (!titleLink || !version) {
+      return;
+    }
+    version.style.marginLeft = "";
+    version.style.position = "";
+    version.style.top = "";
+    var linkRange = document.createRange();
+    linkRange.selectNodeContents(titleLink);
+    var linkRects = Array.prototype.filter.call(linkRange.getClientRects(), function (rect) {
+      return rect.width > 0 && rect.height > 0;
+    });
+    if (!linkRects.length) {
+      return;
+    }
+    var lastLine = linkRects[linkRects.length - 1];
+    var titleRight = lastLine.right;
+    for (var i = 0; i < linkRects.length; i++) {
+      if (linkRects[i].right > titleRight) {
+        titleRight = linkRects[i].right;
+      }
+    }
+    var versionRect = version.getBoundingClientRect();
+    var versionMid = (versionRect.top + versionRect.bottom) / 2;
+    var sameLine = versionMid >= lastLine.top && versionMid <= lastLine.bottom;
+    if (sameLine) {
+      return;
+    }
+    var marginLeft = parseFloat(getComputedStyle(version).marginLeft) || 0;
+    var delta = titleRight - versionRect.right;
+    if (Math.abs(delta) >= 0.5) {
+      version.style.marginLeft = (marginLeft + delta) + "px";
+      versionRect = version.getBoundingClientRect();
+    }
+    var desiredGap = (parseFloat(getComputedStyle(version).fontSize) || 0) / 2;
+    var gapDelta = (lastLine.bottom + desiredGap) - versionRect.top;
+    if (Math.abs(gapDelta) >= 0.5) {
+      version.style.position = "relative";
+      version.style.top = gapDelta + "px";
+    }
+  }
+
+  alignHeaderVersion();
+  window.addEventListener("resize", alignHeaderVersion);
+})();
+</script>
 </body>
 </html>

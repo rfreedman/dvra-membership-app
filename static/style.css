@@ -96,14 +96,35 @@ a:hover {
   filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.4));
 }
 
+.site-header-title-block {
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .site-header-brand-row h1 {
+  display: inline;
   margin: 0;
-  flex: 1 1 auto;
+  max-width: 100%;
   min-width: 0;
   font-size: clamp(1.05rem, 2.8vw + 0.6rem, 1.65rem);
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1.2;
+}
+
+.site-header-version {
+  display: inline-block;
+  margin: 0 0 0 0.75rem;
+  vertical-align: baseline;
+  white-space: nowrap;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  color: #d6dee8;
 }
 
 .site-header-brand-row h1 a {

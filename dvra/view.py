@@ -6,6 +6,7 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from dvra import __version__
 from dvra.http import app_base, url_for
 from dvra.paths import TEMPLATE_DIR
 
@@ -20,6 +21,7 @@ def env() -> Environment:
             autoescape=select_autoescape(["html", "xml"]),
         )
         _env.globals["url_for"] = url_for
+        _env.globals["app_version"] = __version__
     return _env
 
 
