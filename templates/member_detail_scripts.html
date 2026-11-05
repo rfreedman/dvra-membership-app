@@ -38,6 +38,24 @@
     syncSaveState();
 
     form.addEventListener("submit", function (e) {
+      const confirmDeceasedField = document.getElementById("confirm-deceased-change");
+      const deceasedSelect = document.getElementById("edit-deceased");
+      const initialDeceased = form.getAttribute("data-initial-deceased") || "no";
+      const chosenDeceased = deceasedSelect ? String(deceasedSelect.value || "no") : initialDeceased;
+      if (chosenDeceased !== initialDeceased) {
+        const markMsg = form.getAttribute("data-sk-mark-confirm") || "";
+        const clearMsg = form.getAttribute("data-sk-clear-confirm") || "";
+        const skMsg = chosenDeceased === "yes" ? markMsg : clearMsg;
+        if (!window.confirm(skMsg)) {
+          e.preventDefault();
+          return;
+        }
+        if (confirmDeceasedField) {
+          confirmDeceasedField.value = "1";
+        }
+      } else if (confirmDeceasedField) {
+        confirmDeceasedField.value = "";
+      }
       const newHamId = form.getAttribute("data-new-ham-id") || "";
       const initial = form.getAttribute("data-initial-membership") || "";
       const select = document.getElementById("edit-membership");

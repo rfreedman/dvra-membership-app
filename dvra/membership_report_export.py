@@ -183,13 +183,17 @@ def _chart_pngs(report: dict[str, Any]) -> dict[str, bytes]:
     return out
 
 
-def membership_report_pdf(report: dict[str, Any]) -> bytes:
+def _build_membership_report_pdf(report: dict[str, Any]) -> Any:
+    """Build the landscape membership report PDF (tables + charts) on one page."""
     import tempfile
     from pathlib import Path
 
     charts = _chart_pngs(report)
     pdf = _new_landscape_pdf()
+    pdf.set_auto_page_break(False)
     pdf.add_page()
+    # Charts align with the title (not below it) so the stack has more vertical room.
+    charts_top = pdf.get_y()
     pdf.set_font(_PDF_FONT, "B", 14)
     pdf.cell(0, 8, report["report_heading"], new_x="LMARGIN", new_y="NEXT")
     pdf.ln(2)
@@ -202,16 +206,37 @@ def membership_report_pdf(report: dict[str, Any]) -> bytes:
     header_h = 6.0
     row_h = 5.0
     section_gap = 2.0
+    table_font = 9.0
     content_top = pdf.get_y()
+    usable_bottom = pdf.h - pdf.b_margin
+    usable_h = usable_bottom - content_top
+    charts_usable_h = usable_bottom - charts_top
+
+    # Five section headers; ARRL always has two body rows; four gaps between sections.
+    n_headers = 5
+    n_rows = (
+        len(report["member_counts_by_month"])
+        + len(report["license_class"])
+        + len(report["new_members_ytd"])
+        + 2
+    )
+    n_section_gaps = 4
+    needed = n_headers * header_h + n_rows * row_h + n_section_gaps * section_gap
+    if needed > usable_h and needed > 0:
+        scale = usable_h / needed
+        header_h *= scale
+        row_h *= scale
+        section_gap *= scale
+        table_font = max(6.0, table_font * scale)
 
     def _header_fill() -> None:
         pdf.set_fill_color(107, 114, 128)
         pdf.set_text_color(255, 255, 255)
-        pdf.set_font(_PDF_FONT, "B", 9)
+        pdf.set_font(_PDF_FONT, "B", table_font)
 
     def _body_text() -> None:
         pdf.set_text_color(0, 0, 0)
-        pdf.set_font(_PDF_FONT, "", 9)
+        pdf.set_font(_PDF_FONT, "", table_font)
 
     def _section_header_two_col(label: str, value: str) -> None:
         _header_fill()
@@ -281,9 +306,6 @@ def membership_report_pdf(report: dict[str, Any]) -> bytes:
     )
 
     right_margin = pdf.r_margin
-    usable_top = content_top
-    usable_bottom = pdf.h - pdf.b_margin
-    usable_h = usable_bottom - usable_top
     keys = ("member_count", "license", "enrollment", "arrl")
     # All chart PNGs share figsize (5.5, 3.4).
     aspect = 3.4 / 5.5
@@ -291,17 +313,20 @@ def membership_report_pdf(report: dict[str, Any]) -> bytes:
     heights = [img_w * aspect for _ in keys]
     n_gaps = len(keys) - 1
     min_gap = 3.0
-    needed = sum(heights) + n_gaps * min_gap
-    if needed > usable_h:
-        scale = usable_h / needed
+    chart_needed = sum(heights) + n_gaps * min_gap
+    if chart_needed > charts_usable_h and chart_needed > 0:
+        scale = charts_usable_h / chart_needed
         img_w *= scale
         heights = [img_w * aspect for _ in keys]
-    gap = (usable_h - sum(heights)) / n_gaps if n_gaps else 0.0
+        gap = min_gap * scale
+    else:
+        gap = min_gap
+    # Do not stretch gaps to fill leftover space — keep slack above the bottom margin.
     table_right = left_x + table_w
     flush_right_x = pdf.w - right_margin - img_w
     horiz_gap = max(0.0, flush_right_x - table_right)
     right_x = table_right + horiz_gap / 2
-    y = usable_top
+    y = charts_top
     with tempfile.TemporaryDirectory(prefix="dvra-mbr-") as tmp:
         tmp_path = Path(tmp)
         for key, height in zip(keys, heights):
@@ -310,4 +335,8 @@ def membership_report_pdf(report: dict[str, Any]) -> bytes:
             pdf.image(str(path), x=right_x, y=y, w=img_w, h=height)
             y += height + gap
 
-    return bytes(pdf.output())
+    return pdf
+
+
+def membership_report_pdf(report: dict[str, Any]) -> bytes:
+    return bytes(_build_membership_report_pdf(report).output())

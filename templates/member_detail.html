@@ -12,7 +12,11 @@
   <form method="post" action="{{ url_for('/members/' ~ member.id ~ '/edit') }}" class="member-edit-form" id="member-edit-form"
     data-new-ham-id="{{ new_ham_type_id if new_ham_type_id is not none else '' }}"
     data-initial-membership="{{ member.membership_type_id if member.membership_type_id is not none else '' }}"
-    data-new-ham-confirm="{{ new_ham_convert_confirm }}">
+    data-new-ham-confirm="{{ new_ham_convert_confirm }}"
+    data-initial-deceased="{% if member.deceased %}yes{% else %}no{% endif %}"
+    data-sk-mark-confirm="{{ sk_mark_confirm }}"
+    data-sk-clear-confirm="{{ sk_clear_confirm }}">
+    <input type="hidden" name="confirm_deceased_change" id="confirm-deceased-change" value="">
     <fieldset class="member-edit-fieldset{% if read_only %} member-edit-fieldset--readonly{% endif %}"{% if read_only %} disabled{% endif %}>
     <div class="member-form-field">
       <label for="edit-last-name">Last name</label>

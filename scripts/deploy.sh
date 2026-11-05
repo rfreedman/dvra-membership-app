@@ -81,7 +81,7 @@ done
 RSYNC=(
   sshpass -e rsync
   -avz
-  -e "ssh -o StrictHostKeyChecking=accept-new"
+  -e "ssh -o StrictHostKeyChecking=accept-new".venv/bin/python -c "import matplotlib; print(matplotlib.__version__)"
   --exclude '__pycache__/'
   --exclude '*.py[cod]'
   --exclude '.DS_Store'

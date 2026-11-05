@@ -10,7 +10,7 @@ from dvra.membership_report import (
     membership_report_year_options,
     parse_membership_report_query,
 )
-from dvra.membership_report_export import membership_report_pdf
+from dvra.membership_report_export import _build_membership_report_pdf, membership_report_pdf
 from dvra.passwords import hash_password
 from dvra.payments import PaymentRepository
 from dvra.reference_data import ReferenceDataRepository
@@ -213,6 +213,40 @@ def test_membership_report_pdf_magic():
     data = membership_report_pdf(report)
     assert data.startswith(b"%PDF-")
     assert len(data) > 5000
+
+
+def test_membership_report_pdf_fits_one_page_late_year():
+    """Tall late-year tables must scale onto a single landscape page with charts."""
+    conn = _seed_report_db()
+    report = MembershipReportRepository(conn).build_report(
+        {"membership_year": 2026, "calendar_month": 12}
+    )
+    assert len(report["member_counts_by_month"]) == 12
+    assert len(report["new_members_ytd"]) == 12
+    pdf = _build_membership_report_pdf(report)
+    assert pdf.pages_count == 1
+    # Charts stack from top margin with scaled gaps; bottom must stay in printable area.
+    charts_top = pdf.t_margin
+    usable_bottom = pdf.h - pdf.b_margin
+    aspect = 3.4 / 5.5
+    n_charts = 4
+    n_gaps = n_charts - 1
+    min_gap = 3.0
+    img_w = 100.0
+    heights = [img_w * aspect] * n_charts
+    needed = sum(heights) + n_gaps * min_gap
+    charts_usable_h = usable_bottom - charts_top
+    if needed > charts_usable_h:
+        scale = charts_usable_h / needed
+        img_w *= scale
+        heights = [img_w * aspect] * n_charts
+        gap = min_gap * scale
+    else:
+        gap = min_gap
+    charts_bottom = charts_top + sum(heights) + n_gaps * gap
+    assert charts_bottom <= usable_bottom + 1e-6
+    data = bytes(pdf.output())
+    assert data.startswith(b"%PDF-")
 
 
 def test_membership_report_routes_manager_and_readonly(tmp_path: Path):

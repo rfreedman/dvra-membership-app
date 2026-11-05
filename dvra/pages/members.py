@@ -14,6 +14,7 @@ from dvra import member_list
 from dvra import membership_year as myear
 from dvra import join_extension
 from dvra import member_form_validation
+from dvra import member_sk
 from dvra import new_ham
 from dvra import normalizer
 from dvra import auth
@@ -60,6 +61,8 @@ def _member_ref(
         ),
         "new_ham_type_id": new_ham.find_type_id(ctx["conn"]),
         "new_ham_convert_confirm": new_ham.NEW_HAM_CONVERT_CONFIRM,
+        "sk_mark_confirm": member_sk.SK_MARK_CONFIRM,
+        "sk_clear_confirm": member_sk.SK_CLEAR_CONFIRM,
         "unlicensed_license_class_id": find_unlicensed_class_id(ctx["conn"]),
         "current_membership_year": year,
         "has_own_current_year_payment": False,
@@ -251,6 +254,7 @@ def handle_member_new_post(ctx: RequestCtx) -> htt.Response:
     members_repo = MemberRepository(ctx["conn"])
     payments_repo = PaymentRepository(ctx["conn"])
     row = normalizer.member_create_from_form(body, paid_through)
+    row["deceased"] = False
     scripts = view.render("member_new_scripts.html")
 
     def fail(msg: str, status: int) -> htt.Response:
@@ -261,7 +265,7 @@ def handle_member_new_post(ctx: RequestCtx) -> htt.Response:
         ctx["conn"],
         row,
         body,
-        require_paid_year=not row.get("deceased"),
+        require_paid_year=True,
         paid_year=paid_year,
         member_id=None,
     )
@@ -280,9 +284,7 @@ def handle_member_new_post(ctx: RequestCtx) -> htt.Response:
         confirmed_delete = str(body.get("confirm_delete_current_year_payment") or "") == "1"
         if covered_by_current and not confirmed_delete:
             return fail(family.covered_by_delete_current_payment_confirm(current_year), 400)
-        will_record_payment = (
-            paid_year is not None and not row.get("deceased") and not covered_by_current
-        )
+        will_record_payment = paid_year is not None and not covered_by_current
         join_date: date | None = None
         if will_record_payment:
             submitted_date, date_err = _submitted_payment_date(body)
@@ -372,6 +374,10 @@ def handle_member_edit(ctx: RequestCtx, id_: int) -> htt.Response:
     new_primary = row.get("family_primary_member_id")
     if new_primary is not None and has_current and not confirmed_delete:
         return fail(family.covered_by_delete_current_payment_confirm(year), 400)
+    was_deceased = bool(member.get("deceased"))
+    will_deceased = bool(row.get("deceased"))
+    if was_deceased != will_deceased and str(ctx["form"].get("confirm_deceased_change") or "") != "1":
+        return fail(member_sk.SK_CHANGE_CONFIRM_REQUIRED, 400)
     try:
         members_repo.update_member(
             id_,
